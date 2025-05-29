@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Read Bot Settings</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Read Bot Settings</h1>
+      <p>Configure your Read Bot extension preferences</p>
+    </header>
+    
+    <main>
+      <form id="settingsForm">
+        <!-- Content Extraction Settings -->
+        <section class="settings-section">
+          <h2>Content Extraction</h2>
+          
+          <div class="form-group">
+            <label for="defaultExtractionMethod">Default Extraction Method</label>
+            <select id="defaultExtractionMethod" name="defaultExtractionMethod">
+              <option value="readability">Readability.js (Default)</option>
+              <option value="jina">Jina AI</option>
+            </select>
+          </div>
+          
+          <div class="form-group" id="jinaApiKeyGroup">
+            <label for="jinaApiKey">Jina AI API Key (Optional)</label>
+            <input type="password" id="jinaApiKey" name="jinaApiKey" placeholder="Enter your Jina AI API key (optional)">
+            <small>Optional. If not provided, will use free Jina AI Reader service. API key provides higher rate limits and better reliability.</small>
+          </div>
+          
+          <div class="form-group" id="jinaResponseTemplateGroup">
+            <label for="jinaResponseTemplate">Jina AI Response Template</label>
+            <textarea id="jinaResponseTemplate" name="jinaResponseTemplate" rows="4" placeholder="Enter template for formatting Jina AI response"></textarea>
+            <small>Template for formatting Jina AI JSON response. Available placeholders: {title}, {url}, {description}, {content}. Used when API key is provided or JSON response is available.</small>
+          </div>
+          
+
+        </section>
+        
+        <!-- LLM Settings -->
+        <section class="settings-section">
+          <h2>Language Model</h2>
+          
+          <div class="form-group">
+            <label for="defaultLlmProvider">Default LLM Provider</label>
+            <select id="defaultLlmProvider" name="defaultLlmProvider">
+              <option value="openai">OpenAI (Compatible)</option>
+              <option value="gemini">Google Gemini</option>
+            </select>
+          </div>
+          
+          <!-- OpenAI Settings -->
+          <div class="llm-settings" id="openaiSettings">
+            <h3>OpenAI Settings</h3>
+            
+            <div class="form-group">
+              <label for="openaiApiKey">API Key</label>
+              <input type="password" id="openaiApiKey" name="openaiApiKey" placeholder="Enter your OpenAI API key">
+            </div>
+            
+            <div class="form-group">
+              <label for="openaiBaseUrl">API Base URL</label>
+              <input type="text" id="openaiBaseUrl" name="openaiBaseUrl" placeholder="https://api.openai.com" value="https://api.openai.com">
+              <small>Can be changed for OpenAI-compatible APIs.</small>
+            </div>
+            
+            <div class="form-group">
+              <label for="openaiModel">Model</label>
+              <input type="text" id="openaiModel" name="openaiModel" placeholder="gpt-3.5-turbo" value="gpt-3.5-turbo">
+            </div>
+          </div>
+          
+          <!-- Gemini Settings -->
+          <div class="llm-settings" id="geminiSettings">
+            <h3>Google Gemini Settings</h3>
+            
+            <div class="form-group">
+              <label for="geminiApiKey">API Key</label>
+              <input type="password" id="geminiApiKey" name="geminiApiKey" placeholder="Enter your Gemini API key">
+            </div>
+            
+            <div class="form-group">
+              <label for="geminiModel">Model</label>
+              <input type="text" id="geminiModel" name="geminiModel" placeholder="gemini-2.5-pro-preview-05-06" value="gemini-pro">
+            </div>
+          </div>
+        </section>
+        
+        <!-- Popup Size Settings -->
+        <section class="settings-section">
+          <h2>Content Display Settings</h2>
+          <div class="form-group">
+            <label for="contentDisplayHeight">Content Display Height (px)</label>
+            <input type="number" id="contentDisplayHeight" name="contentDisplayHeight" placeholder="e.g., 300">            
+          </div>
+        </section>
+        
+        <!-- System Prompt -->
+        <section class="settings-section">
+          <h2>System Prompt</h2>
+          
+          <div class="form-group">
+            <label for="systemPrompt">Default System Prompt Template</label>
+            <textarea id="systemPrompt" name="systemPrompt" rows="5" placeholder="Enter your system prompt template with {CONTENT} placeholder"></textarea>
+            <small>Use {CONTENT} placeholder to insert the extracted page content.</small>
+          </div>
+        </section>
+        
+        <!-- Quick Inputs -->
+        <section class="settings-section">
+          <h2>Quick Input Buttons</h2>
+          <p>Add pre-defined messages that will appear as quick input buttons.</p>
+          
+          <div id="quickInputsContainer">
+            <!-- Quick input items will be added here dynamically -->
+          </div>
+          
+          <button type="button" id="addQuickInputBtn" class="secondary-btn">+ Add Quick Input</button>
+        </section>
+      </form>
+      
+      <div class="actions">
+        <button type="button" id="resetBtn" class="secondary-btn">Reset to Defaults</button>
+        <button type="button" id="saveBtn" class="primary-btn">Save Settings</button>
+      </div>
+    </main>
+    
+    <div id="saveNotification" class="notification">Settings saved successfully!</div>
+  </div>
+  
+  <!-- Quick Input Template (hidden) -->
+  <template id="quickInputTemplate">
+    <div class="quick-input-item">
+      <div class="form-group">
+        <label>Display Text</label>
+        <input type="text" class="quick-input-display" placeholder="Button text (e.g. 'Summarize')">
+      </div>
+      <div class="form-group">
+        <label>Send Text</label>
+        <textarea class="quick-input-send" rows="3" placeholder="Message to send when clicked (use {CONTENT} placeholder)"></textarea>
+      </div>
+      <button type="button" class="remove-quick-input-btn">Remove</button>
+    </div>
+  </template>
+  
+  <script src="../js/modules/logger.js"></script>
+  <script src="options.js" type="module"></script>
+</body>
+</html> 
