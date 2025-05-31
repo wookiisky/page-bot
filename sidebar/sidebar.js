@@ -446,15 +446,19 @@ async function sendUserMessage() {
   const config = await getConfig();
 
   // Default system prompt from config (usually contains {CONTENT})
-  systemPromptTemplateForPayload = config.systemPrompt || 'You are a helpful assistant. The user is interacting with content from a webpage. The extracted content is provided below:\n{CONTENT}\n\nAnswer the user\'s questions based on this content and your general knowledge.';
+  systemPromptTemplateForPayload = config.systemPrompt ;
+  pageContentForPayload = extractedContent;
 
   if (includePageContentCheckbox.checked) {
     logger.info('Including page content in the message. Extracted content will be sent.');
-    pageContentForPayload = extractedContent; // Send current extracted content
+    systemPromptTemplateForPayload = systemPromptTemplateForPayload + '\n\nContent:\n' + extractedContent; // Send current extracted content
   } else {
     logger.info('Not including page content in the message. Extracted content will be null.');
-    pageContentForPayload = null; // Explicitly set to null if checkbox is unchecked
+    
   }
+  logger.info(['sys', includePageContentCheckbox.checked, systemPromptTemplateForPayload]);
+    
+  
 
   // Show loading indicator in chat
   // Make sure this is called *before* sending the message to ensure UI updates promptly
@@ -603,32 +607,26 @@ function handleStreamEnd(fullResponse) {
 }
 
 // Handle LLM API error
-function handleLlmError(error) {
-  // Find the message that was streaming, if any
-  const streamingMessage = chatContainer.querySelector('[data-streaming="true"]');
+function handleLlmError(error, streamingMessageElement = null) {
+  logger.error('LLM Error:', error);
   
-  if (streamingMessage) {
-    // Update with error
-    const contentDiv = streamingMessage.querySelector('.message-content');
-    contentDiv.innerHTML = `<span style="color: var(--error-color);">Error: ${error}</span>`;
-    
-    // Remove streaming flag
-    streamingMessage.removeAttribute('data-streaming');
+  // Try to find a streaming message if one isn't passed
+  const messageElement = streamingMessageElement || chatContainer.querySelector('[data-streaming="true"]');
+  
+  if (messageElement) {
+    const contentDiv = messageElement.querySelector('.message-content');
+    if (contentDiv) {
+      contentDiv.innerHTML = `<span style="color: var(--error-color);">${typeof error === 'string' ? error : 'An unexpected error occurred with the AI.'}</span>`;
+    }
+    messageElement.removeAttribute('data-streaming'); // Ensure streaming flag is removed
   } else {
-    // Create a new error message
-    const errorDiv = document.createElement('div');
-    errorDiv.className = 'chat-message assistant-message';
-    errorDiv.innerHTML = `
-      <div class="message-role"></div>
-      <div class="message-content">
-        <span style="color: var(--error-color);">Error: ${error}</span>
-      </div>
-    `;
-    chatContainer.appendChild(errorDiv);
+    // If no streaming message (e.g., error happened before one was created or already handled),
+    // append a new error message.
+    appendMessageToUI('assistant', `<span style="color: var(--error-color);">${typeof error === 'string' ? error : 'An unexpected error occurred with the AI.'}</span>`);
   }
   
-  // Scroll to bottom
-  chatContainer.scrollTop = chatContainer.scrollHeight;
+  // Re-enable send button if it was disabled
+  sendBtn.disabled = false;
 }
 
 // Switch extraction method (check cache first, extract if needed)
@@ -790,33 +788,65 @@ async function sendQuickMessage(displayText, sendTextTemplate) {
   logger.info('Appending quick message to UI:', userMessage);
   appendMessageToUI('user', userMessage);
   
-  // Create a placeholder for the assistant's response
-  const assistantMessage = appendMessageToUI('assistant', '');
+  // Show loading indicator in chat for assistant's response
+  const assistantLoadingMessage = appendMessageToUI('assistant', '<div class="spinner"></div> Thinking...', null, true);
   
   // Add the original message to chat history
   chatHistory.push({ role: 'user', content: userMessage });
   
   try {
-    // Get system prompt template
+    // Get system prompt template and page content handling logic
     const config = await getConfig();
-    const systemPromptTemplate = config.systemPrompt;
+    let systemPromptTemplateForPayload = config.systemPrompt;
+    let pageContentForPayload = null; // Initialize to null
+
+    // Replace {CONTENT} placeholder in sendTextTemplate first
+    // This ensures {CONTENT} in quick input's own template is handled correctly
+    const processedSendTextTemplate = sendTextTemplate.replace('{CONTENT}', extractedContent || '');
+
+    // Now, handle the "includePageContent" checkbox for the main system prompt
+    if (includePageContentCheckbox.checked && extractedContent) {
+      logger.info('[QuickMessage] Including page content in the system prompt. Extracted content will be part of system prompt.');
+      // Append extracted content to the system prompt template
+      systemPromptTemplateForPayload = systemPromptTemplateForPayload + '\n\nContent:\n' + extractedContent;
+      pageContentForPayload = extractedContent; // also send it separately for good measure, though service worker might primarily use the one in systemPrompt
+    } else {
+      logger.info('[QuickMessage] Not including page content in the system prompt, or no extracted content available.');
+      // If not checked, or no content, systemPromptTemplateForPayload remains as is (or from config)
+      // pageContentForPayload remains null or what it was (if we decide to pass it even if not in prompt)
+      // For clarity, explicitly set to null if checkbox is unchecked, matching sendUserMessage behavior
+      if (!includePageContentCheckbox.checked) {
+        pageContentForPayload = null;
+      } else {
+        pageContentForPayload = extractedContent; // if checkbox is checked but extractedContent was null/empty
+      }
+    }
     
-    // Replace {CONTENT} placeholder in sendText
-    const actualSendText = sendTextTemplate.replace('{CONTENT}', extractedContent || '');
+    // The actual text to be sent as the user's last turn
+    const actualSendText = processedSendTextTemplate;
     
     // Prepare messages to send to LLM
     // Note: We use the actual substituted text as the last message, but display the original text in the UI
     const messages = chatHistory.slice(0, -1).map(msg => ({ role: msg.role, content: msg.content }));
-    messages.push({ role: 'user', content: actualSendText });
+    messages.push({ role: 'user', content: actualSendText }); // Use processedSendTextTemplate here
     
-    logger.info('Sending quick message to background script...');
+    logger.info('[QuickMessage] Sending quick message to background script...');
+    logger.debug('[QuickMessage] Payload:', {
+        messages,
+        systemPromptTemplate: systemPromptTemplateForPayload,
+        extractedPageContent: pageContentForPayload, // Use the determined pageContentForPayload
+        imageBase64,
+        currentUrl,
+        extractionMethod: currentExtractionMethod
+    });
+
     // Send message to background script
     await chrome.runtime.sendMessage({
       type: 'SEND_LLM_MESSAGE',
       payload: {
         messages,
-        systemPromptTemplate,
-        extractedPageContent: extractedContent,
+        systemPromptTemplate: systemPromptTemplateForPayload, // Use the new template
+        extractedPageContent: pageContentForPayload, // Use the new page content payload
         imageBase64,
         currentUrl,
         extractionMethod: currentExtractionMethod
@@ -825,7 +855,8 @@ async function sendQuickMessage(displayText, sendTextTemplate) {
     logger.info('Quick message sent to background script');
   } catch (error) {
     logger.error('Error sending quick message:', error);
-    handleLlmError('Failed to send message to LLM');
+    // Pass the loading message element to handleLlmError so it can be updated if sending fails
+    handleLlmError('Failed to send message to LLM', assistantLoadingMessage); 
   }
 }
 
