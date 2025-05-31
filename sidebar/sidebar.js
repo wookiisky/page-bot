@@ -387,8 +387,9 @@ function appendMessageToUI(role, content, imageBase64, isStreaming = false) {
   messageDiv.appendChild(roleDiv);
   messageDiv.appendChild(contentDiv);
   
-  // Add action buttons for completed assistant messages (not for streaming placeholders initially)
-  if (role === 'assistant' && !isStreaming && content) {
+  // Add action buttons for completed messages (not for streaming placeholders initially)
+  // Now applies to both 'user' and 'assistant' roles
+  if ((role === 'user' || role === 'assistant') && !isStreaming && content) {
     const buttonContainer = document.createElement('div');
     buttonContainer.className = 'message-buttons';
     
@@ -403,13 +404,13 @@ function appendMessageToUI(role, content, imageBase64, isStreaming = false) {
     copyMarkdownButton.className = 'message-action-btn';
     copyMarkdownButton.innerHTML = '<i class="material-icons">code</i>';
     copyMarkdownButton.title = 'Copy Markdown';
-    copyMarkdownButton.dataset.content = content;
-    copyMarkdownButton.onclick = () => copyMessageMarkdown(content);
+    copyMarkdownButton.dataset.content = content; // For user messages, this will be plain text
+    copyMarkdownButton.onclick = () => copyMessageMarkdown(content); // For user, effectively same as copyText
     
     buttonContainer.appendChild(copyTextButton);
     buttonContainer.appendChild(copyMarkdownButton);
     messageDiv.appendChild(buttonContainer);
-    logger.info(`[appendMessageToUI ${messageTimestamp}] Added action buttons for completed assistant message.`);
+    logger.info(`[appendMessageToUI ${messageTimestamp}] Added action buttons for ${role} message.`);
   }
   
   chatContainer.appendChild(messageDiv);
