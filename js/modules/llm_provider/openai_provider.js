@@ -4,6 +4,61 @@
 const openaiLogger = logger.createModuleLogger('OpenAIProvider');
 
 var openaiProvider = (function() {
+    // Constants
+    const DEFAULT_MODEL = 'gpt-3.5-turbo';
+    const DEFAULT_BASE_URL = 'https://api.openai.com';
+    const DEFAULT_CONFIG = {
+        temperature: 0.7,
+        max_tokens: 4000
+    };
+    const VISION_MODELS = ['gpt-4-vision-preview', 'gpt-4o', 'gpt-4o-mini'];
+
+    // Helper function to build API URL
+    function buildApiUrl(baseUrl) {
+        return `${baseUrl}/v1/chat/completions`;
+    }
+
+    // Helper function to build messages array
+    function buildMessages(messages, systemPrompt, imageBase64, model) {
+        const openaiMessages = [];
+
+        if (systemPrompt) {
+            openaiMessages.push({
+                role: 'system',
+                content: systemPrompt
+            });
+        }
+
+        for (const message of messages) {
+            if (
+                message.role === 'user' &&
+                imageBase64 &&
+                message === messages[messages.length - 1] &&
+                VISION_MODELS.includes(model)
+            ) {
+                openaiMessages.push({
+                    role: 'user',
+                    content: [
+                        { type: 'text', text: message.content },
+                        {
+                            type: 'image_url',
+                            image_url: {
+                                url: imageBase64,
+                                detail: 'auto'
+                            }
+                        }
+                    ]
+                });
+            } else {
+                openaiMessages.push({
+                    role: message.role,
+                    content: message.content
+                });
+            }
+        }
+
+        return openaiMessages;
+    }
 
     // Handle OpenAI streaming response
     async function handleOpenAIStream(response, streamCallback, doneCallback, errorCallback) {
@@ -15,14 +70,11 @@ var openaiProvider = (function() {
 
             while (true) {
                 const { done, value } = await reader.read();
-
-                if (done) {
-                    break;
-                }
+                if (done) break;
 
                 buffer += decoder.decode(value, { stream: true });
                 const lines = buffer.split('\n');
-                buffer = lines.pop() || ''; 
+                buffer = lines.pop() || '';
 
                 for (const line of lines) {
                     if (line.startsWith('data: ')) {
@@ -31,9 +83,10 @@ var openaiProvider = (function() {
                             doneCallback(fullResponse);
                             return;
                         }
+
                         try {
                             const parsedData = JSON.parse(data);
-                            if (parsedData.choices && parsedData.choices[0].delta && parsedData.choices[0].delta.content) {
+                            if (parsedData.choices?.[0]?.delta?.content) {
                                 const textChunk = parsedData.choices[0].delta.content;
                                 fullResponse += textChunk;
                                 streamCallback(textChunk);
@@ -51,8 +104,8 @@ var openaiProvider = (function() {
         }
     }
 
-    // Call OpenAI API (internal function)
-    async function callOpenAIInternal(
+    // Main execution function
+    async function execute(
         messages,
         llmConfig,
         systemPrompt,
@@ -62,8 +115,8 @@ var openaiProvider = (function() {
         errorCallback
     ) {
         const apiKey = llmConfig.apiKey;
-        const baseUrl = llmConfig.baseUrl || 'https://api.openai.com';
-        const model = llmConfig.model || 'gpt-3.5-turbo';
+        const baseUrl = llmConfig.baseUrl || DEFAULT_BASE_URL;
+        const model = llmConfig.model || DEFAULT_MODEL;
 
         if (!apiKey) {
             const error = new Error('OpenAI API key is required');
@@ -73,49 +126,13 @@ var openaiProvider = (function() {
         }
 
         try {
-            const apiUrl = `${baseUrl}/v1/chat/completions`;
-            const openaiMessages = [];
-
-            if (systemPrompt) {
-                openaiMessages.push({
-                    role: 'system',
-                    content: systemPrompt
-                });
-            }
-
-            for (const message of messages) {
-                if (
-                    message.role === 'user' &&
-                    imageBase64 &&
-                    message === messages[messages.length - 1] &&
-                    ['gpt-4-vision-preview', 'gpt-4o', 'gpt-4o-mini'].includes(model)
-                ) {
-                    openaiMessages.push({
-                        role: 'user',
-                        content: [
-                            { type: 'text', text: message.content },
-                            {
-                                type: 'image_url',
-                                image_url: {
-                                    url: imageBase64,
-                                    detail: 'auto'
-                                }
-                            }
-                        ]
-                    });
-                } else {
-                    openaiMessages.push({
-                        role: message.role,
-                        content: message.content
-                    });
-                }
-            }
+            const apiUrl = buildApiUrl(baseUrl);
+            const openaiMessages = buildMessages(messages, systemPrompt, imageBase64, model);
 
             const requestBody = {
-                model: model,
+                model,
                 messages: openaiMessages,
-                temperature: 0.7,
-                max_tokens: 4000,
+                ...DEFAULT_CONFIG,
                 stream: !!streamCallback
             };
 
@@ -146,7 +163,5 @@ var openaiProvider = (function() {
         }
     }
 
-    return {
-        execute: callOpenAIInternal
-    };
+    return { execute };
 })(); 

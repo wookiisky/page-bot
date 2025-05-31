@@ -4,15 +4,71 @@
 const geminiLogger = logger.createModuleLogger('GeminiProvider');
 
 var geminiProvider = (function() {
+    // Constants
+    const DEFAULT_MODEL = 'gemini-pro';
+    const DEFAULT_CONFIG = {
+        temperature: 0.7,
+        topK: 40,
+        topP: 0.95,
+        maxOutputTokens: 8192
+    };
+
+    // Helper function to build API URL
+    function buildApiUrl(model, apiKey, isStreaming) {
+        const baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models';
+        const endpoint = isStreaming ? 'streamGenerateContent' : 'generateContent';
+        const streamParam = isStreaming ? '&alt=sse' : '';
+        return `${baseUrl}/${model}:${endpoint}?key=${apiKey}${streamParam}`;
+    }
+
+    // Helper function to build request contents
+    function buildContents(messages, systemPrompt, imageBase64, model) {
+        const contents = [];
+        
+        if (systemPrompt) {
+            contents.push({
+                role: 'user',
+                parts: [{ text: systemPrompt }]
+            });
+            contents.push({
+                role: 'model',
+                parts: [{ text: 'I understand. I will analyze the provided content.' }]
+            });
+        }
+
+        for (const message of messages) {
+            const role = message.role === 'assistant' ? 'model' : 'user';
+            
+            if (role === 'user' && imageBase64 && message === messages[messages.length - 1] && model.includes('vision')) {
+                const parts = [];
+                if (message.content) {
+                    parts.push({ text: message.content });
+                }
+                const imageData = imageBase64.split(',')[1];
+                parts.push({
+                    inlineData: {
+                        mimeType: imageBase64.split(';')[0].split(':')[1],
+                        data: imageData
+                    }
+                });
+                contents.push({ role, parts });
+            } else {
+                contents.push({
+                    role,
+                    parts: [{ text: message.content }]
+                });
+            }
+        }
+        
+        return contents;
+    }
 
     // Handle Gemini streaming response
     async function handleGeminiStream(apiUrl, requestBody, streamCallback, doneCallback, errorCallback) {
         try {
             const response = await fetch(apiUrl, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(requestBody)
             });
 
@@ -26,26 +82,18 @@ var geminiProvider = (function() {
             const decoder = new TextDecoder('utf-8');
             let fullResponse = '';
             let buffer = '';
-            let chunkCount = 0;
 
             while (true) {
                 const { done, value } = await reader.read();
+                if (done) break;
 
-                if (done) {
-                    break;
-                }
-
-                chunkCount++;
-                const decodedChunk = decoder.decode(value, { stream: true });
-                buffer += decodedChunk;
-
+                buffer += decoder.decode(value, { stream: true });
                 const lines = buffer.split('\n');
                 buffer = lines.pop() || '';
 
                 for (const line of lines) {
                     if (line.startsWith('data: ')) {
                         const data = line.slice(6);
-
                         if (data === '[DONE]') {
                             doneCallback(fullResponse);
                             return;
@@ -53,7 +101,7 @@ var geminiProvider = (function() {
 
                         try {
                             const parsedData = JSON.parse(data);
-                            if (parsedData.candidates && parsedData.candidates[0]?.content?.parts?.[0]?.text) {
+                            if (parsedData.candidates?.[0]?.content?.parts?.[0]?.text) {
                                 const textChunk = parsedData.candidates[0].content.parts[0].text;
                                 fullResponse += textChunk;
                                 streamCallback(textChunk);
@@ -71,8 +119,8 @@ var geminiProvider = (function() {
         }
     }
 
-    // Call Gemini API (internal function)
-    async function callGeminiInternal(
+    // Main execution function
+    async function execute(
         messages,
         llmConfig,
         systemPrompt,
@@ -82,7 +130,7 @@ var geminiProvider = (function() {
         errorCallback
     ) {
         const apiKey = llmConfig.apiKey;
-        const model = llmConfig.model || 'gemini-pro';
+        const model = llmConfig.model || DEFAULT_MODEL;
 
         if (!apiKey) {
             const error = new Error('Gemini API key is required');
@@ -92,72 +140,21 @@ var geminiProvider = (function() {
         }
 
         try {
-            let apiUrl;
-            if (streamCallback && doneCallback) {
-                apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?key=${apiKey}&alt=sse`;
-            } else {
-                apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-            }
-
-            const contents = [];
-            if (systemPrompt) {
-                contents.push({
-                    role: 'user',
-                    parts: [{ text: systemPrompt }]
-                });
-                contents.push({
-                    role: 'model',
-                    parts: [{ text: 'I understand. I will analyze the provided content.' }]
-                });
-            }
-
-            for (const message of messages) {
-                const role = message.role === 'assistant' ? 'model' : 'user';
-                if (role === 'user' && imageBase64 && message === messages[messages.length - 1] && model.includes('vision')) {
-                    const parts = [];
-                    if (message.content) {
-                        parts.push({ text: message.content });
-                    }
-                    const imageData = imageBase64.split(',')[1];
-                    parts.push({
-                        inlineData: {
-                            mimeType: imageBase64.split(';')[0].split(':')[1],
-                            data: imageData
-                        }
-                    });
-                    contents.push({ role, parts });
-                } else {
-                    contents.push({
-                        role,
-                        parts: [{ text: message.content }]
-                    });
-                }
-            }
-
+            const isStreaming = !!(streamCallback && doneCallback);
+            const apiUrl = buildApiUrl(model, apiKey, isStreaming);
+            const contents = buildContents(messages, systemPrompt, imageBase64, model);
+            
             const requestBody = {
                 contents,
-                generationConfig: {
-                    temperature: 0.7,
-                    topK: 40,
-                    topP: 0.95,
-                    maxOutputTokens: 8192
-                }
+                generationConfig: { ...DEFAULT_CONFIG }
             };
 
-            if (streamCallback && doneCallback) {
-                await handleGeminiStream(
-                    apiUrl,
-                    requestBody,
-                    streamCallback,
-                    doneCallback,
-                    errorCallback
-                );
+            if (isStreaming) {
+                await handleGeminiStream(apiUrl, requestBody, streamCallback, doneCallback, errorCallback);
             } else {
                 const response = await fetch(apiUrl, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(requestBody)
                 });
 
@@ -176,7 +173,5 @@ var geminiProvider = (function() {
         }
     }
 
-    return {
-        execute: callGeminiInternal
-    };
+    return { execute };
 })(); 
