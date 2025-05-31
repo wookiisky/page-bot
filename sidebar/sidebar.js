@@ -2,7 +2,7 @@
 // Handles UI interaction and communication with the background script
 
 // Import logger module
-const logger = window.logger ? window.logger.createModuleLogger('Popup') : console;
+const logger = window.logger ? window.logger.createModuleLogger('Sidebar') : console;
 
 // Current page URL and extracted content
 let currentUrl = '';
@@ -751,20 +751,20 @@ async function sendQuickMessage(displayText, sendTextTemplate) {
 // Get config from background script
 async function getConfig() {
   try {
-    logger.info('Popup: Requesting config from service worker...');
+    serviceLogger.info('Sidebar: Requesting config from service worker...');
     const response = await chrome.runtime.sendMessage({
       type: 'GET_CONFIG'
     });
-    logger.info('Popup: Received response from service worker for GET_CONFIG:', response);
+    serviceLogger.info('Sidebar: Received response from service worker for GET_CONFIG:', response);
     
     if (response && response.type === 'CONFIG_LOADED' && response.config) {
       return response.config;
     } else {
-      logger.error('Popup: Error loading config or config missing in response. Response:', response);
+      serviceLogger.error('Sidebar: Error loading config or config missing in response. Response:', response);
       return null;
     }
   } catch (error) {
-    logger.error('Popup: Error requesting config via sendMessage:', error);
+    serviceLogger.error('Sidebar: Error requesting config via sendMessage:', error);
     return null;
   }
 }

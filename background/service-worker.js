@@ -19,8 +19,8 @@ function safeSendMessage(message) {
     // Add a callback to catch and silence the error
     () => {
       if (chrome.runtime.lastError) {
-        // Quietly handle the error - this is expected when popup is closed
-        serviceLogger.debug('Message destination unavailable, this is normal when popup is closed');
+        // Quietly handle the error - this is expected when sidebar is closed
+        serviceLogger.debug('Message destination unavailable, this is normal when sidebar is closed');
       }
     }
   );
@@ -205,7 +205,7 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
         serviceLogger.debug('Error closing side panel on tab switch:', error.message);
       }
       
-      // Send tab change notification to popup if it's open
+      // Send tab change notification to sidebar if it's open
       safeSendMessage({
         type: 'TAB_CHANGED',
         url: tab.url
@@ -221,7 +221,7 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
 // Tab URL change listener
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (changeInfo.status === 'complete' && tab && tab.url) {
-    serviceLogger.info('URL changed to:', tab.url);
+    serviceLogger.info('Tab updated to:', tab.url);
     
     // Check if this is the active tab to avoid unnecessary operations
     const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -279,7 +279,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   }
 });
 
-// Message handling from popup.js and content_script.js
+// Message handling from sidebar.js and content_script.js
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // Using async function for promise handling
   const handleMessage = async () => {
@@ -552,29 +552,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           let error = null;
           
           try {
-            // Create a stream callback to send chunks to popup
+            // Create a stream callback to send chunks to sidebar
             const streamCallback = (chunk) => {
-              assistantResponse += chunk;
-              safeSendMessage({ type: 'LLM_STREAM_CHUNK', chunk });
+              if (chunk !== undefined && chunk !== null) {
+                safeSendMessage({ type: 'LLM_STREAM_CHUNK', chunk });
+                serviceLogger.debug('Sending chunk to UI:', chunk);
+              }
             };
             
             const doneCallback = async (fullResponse) => {
-              // Save to chat history (global for the URL)
-              const existingChatHistory = await storage.getChatHistory(currentUrl);
-              
-              // Extract the last user message
-              const userMessage = messages[messages.length - 1].content;
-              
-              // Add the new exchange to chat history
-              existingChatHistory.push(
-                { role: 'user', content: userMessage },
-                { role: 'assistant', content: fullResponse }
-              );
-              
-              await storage.saveChatHistory(currentUrl, existingChatHistory);
-              
-              // Signal completion to popup
+              serviceLogger.info('LLM stream finished. Full response:', fullResponse);
               safeSendMessage({ type: 'LLM_STREAM_END', fullResponse });
+              
+              // Signal completion to sidebar
+              if (message.payload && message.payload.currentUrl) {
+                await storage.saveChatHistory(message.payload.currentUrl, chatHistory);
+              }
             };
             
             const errorCallback = (err) => {
