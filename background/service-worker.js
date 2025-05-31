@@ -364,7 +364,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                       (response) => {
                         if (chrome.runtime.lastError) {
                            serviceLogger.error('Error getting HTML from tab:', chrome.runtime.lastError.message);
-                           resolve(null);
+                           if (chrome.runtime.lastError.message === "Could not establish connection. Receiving end does not exist.") {
+                             resolve('CONTENT_SCRIPT_NOT_CONNECTED');
+                           } else {
+                             resolve(null);
+                           }
                         } else {
                            resolve(response?.htmlContent || null);
                         }
@@ -377,9 +381,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               // Ensure HTML content is available for Readability method
               if (defaultMethod === 'readability' && !htmlContent) {
                 serviceLogger.warn('HTML content not available for Readability extraction - possibly page still loading');
-                return { 
-                  type: 'PAGE_DATA_ERROR', 
-                  error: 'page_loading' 
+                return {
+                  type: 'PAGE_DATA_ERROR',
+                  error: 'page_loading'
+                };
+              }
+              if (defaultMethod === 'readability' && htmlContent === 'CONTENT_SCRIPT_NOT_CONNECTED') {
+                serviceLogger.warn('HTML content not available: Content script not connected.');
+                return {
+                  type: 'PAGE_DATA_ERROR',
+                  error: 'CONTENT_SCRIPT_NOT_CONNECTED'
                 };
               }
               
@@ -444,7 +455,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                   (response) => {
                     if (chrome.runtime.lastError) {
                       serviceLogger.error('Error getting HTML from tab (switch method):', chrome.runtime.lastError.message);
-                      resolve(null);
+                      if (chrome.runtime.lastError.message === "Could not establish connection. Receiving end does not exist.") {
+                        resolve('CONTENT_SCRIPT_NOT_CONNECTED');
+                      } else {
+                        resolve(null);
+                      }
                     } else {
                       resolve(response?.htmlContent || null);
                     }
@@ -458,9 +473,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             // Ensure HTML content is available for Readability method
             if (method === 'readability' && !htmlContent) {
               serviceLogger.warn('HTML content not available for Readability extraction - possibly page still loading');
-              return { 
-                type: 'CONTENT_UPDATE_ERROR', 
-                error: 'page_loading' 
+              return {
+                type: 'CONTENT_UPDATE_ERROR',
+                error: 'page_loading'
+              };
+            }
+            if (method === 'readability' && htmlContent === 'CONTENT_SCRIPT_NOT_CONNECTED') {
+              serviceLogger.warn('HTML content not available (switch method): Content script not connected.');
+              return {
+                type: 'CONTENT_UPDATE_ERROR',
+                error: 'CONTENT_SCRIPT_NOT_CONNECTED'
               };
             }
             
@@ -519,8 +541,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                   { type: 'GET_HTML_CONTENT' },
                   (response) => {
                      if (chrome.runtime.lastError) {
-                        serviceLogger.error('Error getting HTML from tab (re-extract): ', chrome.runtime.lastError.message);
-                        resolve(null);
+                        serviceLogger.error('Error getting HTML from tab (re-extract):', chrome.runtime.lastError.message);
+                        if (chrome.runtime.lastError.message === "Could not establish connection. Receiving end does not exist.") {
+                          resolve('CONTENT_SCRIPT_NOT_CONNECTED');
+                        } else {
+                          resolve(null);
+                        }
                      } else {
                         resolve(response?.htmlContent || null);
                      }
@@ -534,14 +560,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             // Ensure HTML content is available for Readability method
             if (method === 'readability' && !htmlContent) {
               serviceLogger.warn('HTML content not available for Readability re-extraction - possibly page still loading');
-              return { 
-                type: 'CONTENT_UPDATE_ERROR', 
-                error: 'page_loading' 
+              return {
+                type: 'CONTENT_UPDATE_ERROR',
+                error: 'page_loading'
+              };
+            }
+            if (method === 'readability' && htmlContent === 'CONTENT_SCRIPT_NOT_CONNECTED') {
+              serviceLogger.warn('HTML content not available (re-extract): Content script not connected.');
+              return {
+                type: 'CONTENT_UPDATE_ERROR',
+                error: 'CONTENT_SCRIPT_NOT_CONNECTED'
               };
             }
             
             serviceLogger.info(`Calling contentExtractor.extract with method: ${method}`);
-            const extractedContent = await contentExtractor.extract(url, htmlContent, method, config);
+            const extractedContent = await contentExtractor.extract(url, htmlContent, method, config, true); // forceReExtract is true
             serviceLogger.info(`Content extraction result: ${extractedContent ? 'SUCCESS' : 'FAILED'}`);
             if (extractedContent) {
               serviceLogger.info(`Extracted content length: ${extractedContent.length}`);

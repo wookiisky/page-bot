@@ -998,20 +998,32 @@ function showExtractionError(error) {
   copyContentBtn.classList.remove('enabled');
   copyContentBtn.disabled = true;
   
-  // Retry button enabled (orange)
+  // Retry button enabled (primary color)
   retryExtractBtn.classList.remove('disabled');
   retryExtractBtn.classList.add('enabled');
   retryExtractBtn.disabled = false;
   
-  // Re-enable extraction method switching after extraction error
-  jinaExtractBtn.disabled = false;
-  readabilityExtractBtn.disabled = false;
-  
-  // Display the actual error message or a default
-  const displayError = typeof error === 'string' && error ? error : 'Failed to extract content.';
-  extractionError.textContent = displayError;
-  extractionError.dataset.errorMsg = displayError; // Keep original error in dataset for debugging
-  logger.error('Extraction Error Displayed:', displayError); // Log the error being shown
+  let errorMessage = 'Failed to extract content.'; // Default message
+  if (error) {
+    if (error === 'CONTENT_SCRIPT_NOT_CONNECTED') {
+      errorMessage = 'Please reload page and retry.';
+    } else if (error === 'page_loading') {
+      errorMessage = 'Page content not ready, please wait for page to load fully and retry.';
+    } else if (typeof error === 'string') {
+      errorMessage = error;
+    } else if (error.message) {
+      errorMessage = error.message;
+    } else {
+      try {
+        errorMessage = JSON.stringify(error);
+      } catch (e) {
+        // If stringify fails, use the default message
+      }
+    }
+  }
+  extractionError.textContent = errorMessage;
+  logger.error('Extraction Error:', errorMessage);
+  updateExtractionButtonUI(); // Ensure buttons are updated based on state
 }
 
 // Show restricted page message
