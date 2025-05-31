@@ -35,6 +35,7 @@ const copyContentBtn = document.getElementById('copyContentBtn');
 const retryExtractBtn = document.getElementById('retryExtractBtn');
 const contentSection = document.getElementById('contentSection');
 const resizeHandle = document.getElementById('resizeHandle');
+const includePageContentCheckbox = document.getElementById('includePageContent');
 
 // Initialize when the panel loads
 document.addEventListener('DOMContentLoaded', async () => {
@@ -94,10 +95,14 @@ async function loadCurrentPageData() {
     
     // Load page data from background script
     try {
+      // Add a small delay to allow service worker to initialize
+      await new Promise(resolve => setTimeout(resolve, 100)); 
+      logger.info('Attempting to send GET_PAGE_DATA to service worker');
       const response = await chrome.runtime.sendMessage({
         type: 'GET_PAGE_DATA',
         url: currentUrl
       });
+      logger.info('Received response for GET_PAGE_DATA:', response);
       
       if (response.type === 'PAGE_DATA_LOADED') {
         // Data loaded successfully
@@ -107,8 +112,8 @@ async function loadCurrentPageData() {
         showExtractionError(response.error);
       }
     } catch (error) {
-      logger.error('Error requesting page data:', error);
-      showExtractionError('Failed to communicate with the background script');
+      logger.error('Error requesting page data:', error); // This log should appear in sidebar console
+      showExtractionError('Failed to communicate with the background script. Details: ' + (error.message || 'Unknown error'));
     }
   } else {
     showExtractionError('No active tab found');
@@ -251,39 +256,46 @@ async function handlePageDataLoaded(data) {
   userInput.disabled = false;
   sendBtn.disabled = false;
   
-  // Use the extraction method returned from backend, or fall back to config default
+  // Update extracted content and display
+  if (data && data.content) {
+    extractedContent = data.content; // Store extracted content
+    await displayExtractedContent(extractedContent); // Display content in UI
+    copyContentBtn.classList.add('visible'); // Show copy button
+    copyContentBtn.disabled = false;
+  } else {
+    extractedContent = ''; // Clear extracted content if none found
+    showExtractionError('No content could be extracted.');
+    copyContentBtn.classList.remove('visible');
+    copyContentBtn.disabled = true;
+  }
+  
+  // Update extraction method UI based on what was actually used
   if (data && data.extractionMethod) {
     currentExtractionMethod = data.extractionMethod;
-    logger.info(`Using extraction method from backend: ${currentExtractionMethod}`);
-  } else {
-    const config = await getConfig();
-    currentExtractionMethod = config.defaultExtractionMethod || 'readability';
-    logger.info(`Using extraction method from config: ${currentExtractionMethod}`);
+    if (typeof updateExtractionButtonUI === 'function') {
+      updateExtractionButtonUI();
+    } else {
+      logger.error('updateExtractionButtonUI function is not defined when trying to call it.');
+    }
+    logger.info(`Content displayed using method: ${currentExtractionMethod}`);
   }
-  
-  // Update button styling to reflect current method
-  jinaExtractBtn.classList.toggle('active', currentExtractionMethod === 'jina');
-  readabilityExtractBtn.classList.toggle('active', currentExtractionMethod === 'readability');
-  logger.info(`Button styling updated - Jina active: ${currentExtractionMethod === 'jina'}, Readability active: ${currentExtractionMethod === 'readability'}`);
-  
-  if (data && data.content) {
-    extractedContent = data.content;
-    await displayExtractedContent(extractedContent);
-  } else {
-    // No content available, show buttons in disabled state
-    copyContentBtn.classList.add('visible');
-    retryExtractBtn.classList.add('visible');
-    copyContentBtn.classList.add('disabled');
-    retryExtractBtn.classList.add('disabled');
-    copyContentBtn.classList.remove('enabled');
-    retryExtractBtn.classList.remove('enabled');
-    copyContentBtn.disabled = true;
-    retryExtractBtn.disabled = true;
-  }
-  
+
+  // Use chat history directly from the data provided by the service worker
   if (data && data.chatHistory) {
     chatHistory = data.chatHistory;
-    displayChatHistory(chatHistory);
+  } else {
+    chatHistory = []; // Default to empty array if not provided
+  }
+  displayChatHistory(chatHistory);
+  
+  // Enable or disable retry button based on success
+  retryExtractBtn.disabled = !extractedContent;
+  if (extractedContent) {
+    retryExtractBtn.classList.remove('disabled');
+    retryExtractBtn.classList.add('visible');
+  } else {
+    retryExtractBtn.classList.add('disabled');
+    // Keep visible to allow retry
   }
 }
 
@@ -334,30 +346,40 @@ function displayChatHistory(history) {
 }
 
 // Append a new message to the chat UI
-function appendMessageToUI(role, content) {
-  logger.info(`Appending message: role=${role}, content=${content ? content.substring(0, 50) + '...' : 'empty'}`);
+function appendMessageToUI(role, content, imageBase64, isStreaming = false) {
+  const messageTimestamp = Date.now(); // For unique ID if needed
+  logger.info(`[appendMessageToUI ${messageTimestamp}] Role: ${role}, Streaming: ${isStreaming}, Content: ${content ? content.substring(0, 50) + '...' : 'empty'}`);
   
   const messageDiv = document.createElement('div');
   messageDiv.className = `chat-message ${role === 'user' ? 'user-message' : 'assistant-message'}`;
+  messageDiv.id = `message-${messageTimestamp}`;
   
   const roleDiv = document.createElement('div');
   roleDiv.className = 'message-role';
-  roleDiv.textContent = '';
+  roleDiv.textContent = ''; // Role text is not currently used, can be added if needed
   
   const contentDiv = document.createElement('div');
   contentDiv.className = 'message-content';
   
-  // If this is a new assistant message (being streamed), add a placeholder
-  if (role === 'assistant' && content === '') {
-    contentDiv.innerHTML = '<div class="spinner"></div>';
+  if (role === 'assistant' && isStreaming) {
+    logger.info(`[appendMessageToUI ${messageTimestamp}] Condition for streaming assistant placeholder met.`);
+    try {
+      // The content passed for streaming placeholder is already HTML with spinner
+      contentDiv.innerHTML = content; 
+      logger.info(`[appendMessageToUI ${messageTimestamp}] Applied raw HTML content for streaming placeholder.`);
+    } catch (error) {
+      logger.error(`[appendMessageToUI ${messageTimestamp}] Error setting innerHTML for streaming placeholder:`, error);
+      contentDiv.textContent = content; // Fallback
+    }
     messageDiv.dataset.streaming = 'true';
+    logger.info(`[appendMessageToUI ${messageTimestamp}] Set data-streaming=true on messageDiv (ID: ${messageDiv.id}). Element:`, messageDiv);
   } else {
-    // Render markdown for content
+    logger.info(`[appendMessageToUI ${messageTimestamp}] Not a streaming assistant placeholder. Role: ${role}, Streaming: ${isStreaming}`);
     try {
       contentDiv.innerHTML = window.marked.parse(content);
-      logger.info('Markdown parsed successfully');
+      logger.info(`[appendMessageToUI ${messageTimestamp}] Parsed Markdown for normal message.`);
     } catch (error) {
-      logger.error('Error parsing markdown:', error);
+      logger.error(`[appendMessageToUI ${messageTimestamp}] Error parsing markdown for normal message:`, error);
       contentDiv.textContent = content; // Fallback to plain text
     }
   }
@@ -365,12 +387,11 @@ function appendMessageToUI(role, content) {
   messageDiv.appendChild(roleDiv);
   messageDiv.appendChild(contentDiv);
   
-  // Add action buttons for assistant messages
-  if (role === 'assistant' && content) {
+  // Add action buttons for completed assistant messages (not for streaming placeholders initially)
+  if (role === 'assistant' && !isStreaming && content) {
     const buttonContainer = document.createElement('div');
     buttonContainer.className = 'message-buttons';
     
-    // Copy text button
     const copyTextButton = document.createElement('button');
     copyTextButton.className = 'message-action-btn';
     copyTextButton.innerHTML = '<i class="material-icons">content_copy</i>';
@@ -378,7 +399,6 @@ function appendMessageToUI(role, content) {
     copyTextButton.dataset.content = content;
     copyTextButton.onclick = () => copyMessageText(content);
     
-    // Copy markdown button
     const copyMarkdownButton = document.createElement('button');
     copyMarkdownButton.className = 'message-action-btn';
     copyMarkdownButton.innerHTML = '<i class="material-icons">code</i>';
@@ -389,72 +409,92 @@ function appendMessageToUI(role, content) {
     buttonContainer.appendChild(copyTextButton);
     buttonContainer.appendChild(copyMarkdownButton);
     messageDiv.appendChild(buttonContainer);
+    logger.info(`[appendMessageToUI ${messageTimestamp}] Added action buttons for completed assistant message.`);
   }
   
   chatContainer.appendChild(messageDiv);
-  logger.info('Message added to chat container');
+  logger.info(`[appendMessageToUI ${messageTimestamp}] Message div (ID: ${messageDiv.id}) appended to chatContainer. Child count: ${chatContainer.childElementCount}`);
   
   // Scroll to bottom
   chatContainer.scrollTop = chatContainer.scrollHeight;
   
-  return messageDiv;
+  return messageDiv; // Return the element itself
 }
 
 // Send user message to LLM
 async function sendUserMessage() {
-  const userMessage = userInput.value.trim();
-  
-  if (!userMessage) {
+  const userText = userInput.value.trim();
+  if (!userText && !imageBase64) {
+    logger.warn('Attempted to send an empty message');
     return;
   }
-  
-  logger.info('Sending user message:', userMessage);
-  
-  // Clear input
+
+  // Clear input and disable send button
   userInput.value = '';
+  sendBtn.disabled = true;
   
-  // Add user message to UI
-  logger.info('Appending user message to UI...');
-  appendMessageToUI('user', userMessage);
-  logger.info('User message appended to UI');
+  // Optimistically add user message to UI
+  appendMessageToUI('user', userText, imageBase64);
   
-  // Create a placeholder for the assistant's response
-  const assistantMessageDiv = appendMessageToUI('assistant', '');
-  if (assistantMessageDiv) {
-    assistantMessageDiv.dataset.markdownBuffer = ''; // Initialize buffer
+  // Add user message to local chatHistory array for optimistic UI update
+  // The service worker will handle the actual saving of the complete history (user + assistant)
+  chatHistory.push({ role: 'user', content: userText });
+  
+  // Prepare payload for service worker
+  let systemPromptTemplateForPayload = '';
+  let pageContentForPayload = null;
+  const config = await getConfig();
+
+  // Default system prompt from config (usually contains {CONTENT})
+  systemPromptTemplateForPayload = config.systemPrompt || 'You are a helpful assistant. The user is interacting with content from a webpage. The extracted content is provided below:\n{CONTENT}\n\nAnswer the user\'s questions based on this content and your general knowledge.';
+
+  if (includePageContentCheckbox.checked) {
+    logger.info('Including page content in the message. Extracted content will be sent.');
+    pageContentForPayload = extractedContent; // Send current extracted content
+  } else {
+    logger.info('Not including page content in the message. Extracted content will be null.');
+    pageContentForPayload = null; // Explicitly set to null if checkbox is unchecked
   }
+
+  // Show loading indicator in chat
+  // Make sure this is called *before* sending the message to ensure UI updates promptly
+  const loadingMsgId = appendMessageToUI('assistant', '<div class="spinner"></div> Thinking...', null, true);
   
-  // Add message to chat history (will be updated with full response later)
-  chatHistory.push({ role: 'user', content: userMessage });
-  
+  // Remove image after sending if one was attached
+  if (imageBase64) {
+    removeAttachedImage();
+  }
+
   try {
-    // Get system prompt template from config
-    const config = await getConfig();
-    const systemPromptTemplate = config.systemPrompt;
-    
-    // Prepare messages array for LLM
-    const messages = chatHistory.map(msg => ({ role: msg.role, content: msg.content }));
-    
-    logger.info('Sending message to background script...');
-    // Send message to background script
+    // Send message to background script for LLM processing
     await chrome.runtime.sendMessage({
-      type: 'SEND_LLM_MESSAGE',
-      payload: {
-        messages,
-        systemPromptTemplate,
-        extractedPageContent: extractedContent,
-        imageBase64,
-        currentUrl,
+      type: 'SEND_LLM_MESSAGE', // Corrected type
+      payload: { // Corrected structure
+        messages: chatHistory, // Full history including current user message
+        systemPromptTemplate: systemPromptTemplateForPayload,
+        extractedPageContent: pageContentForPayload,
+        imageBase64: imageBase64, // This remains null if no image was attached
+        currentUrl: currentUrl,
         extractionMethod: currentExtractionMethod
       }
     });
-    logger.info('Message sent to background script');
-    
-    // Clear any attached image after sending
-    removeAttachedImage();
   } catch (error) {
-    logger.error('Error sending message:', error);
-    handleLlmError('Failed to send message to LLM');
+    logger.error('Error sending message to LLM via service worker:', error);
+    handleLlmError('Failed to send message to the AI. Check service worker logs.');
+    // It's important to also update the UI if the sendMessage itself fails.
+    // The handleLlmError function should ideally remove the loading indicator.
+    if (loadingMsgId && typeof loadingMsgId === 'string') { // if appendMessageToUI returned an ID
+        const loadingMessageElement = document.getElementById(loadingMsgId);
+        if (loadingMessageElement) {
+            const contentDiv = loadingMessageElement.querySelector('.message-content');
+            if (contentDiv) contentDiv.innerHTML = `<span style="color: var(--error-color);">Error: Failed to send message.</span>`;
+            loadingMessageElement.removeAttribute('data-streaming');
+        }
+    } else if (loadingMsgId && loadingMsgId.classList) { // if it returned the element itself
+        const contentDiv = loadingMsgId.querySelector('.message-content');
+        if (contentDiv) contentDiv.innerHTML = `<span style="color: var(--error-color);">Error: Failed to send message.</span>`;
+        loadingMsgId.removeAttribute('data-streaming');
+    }
   }
 }
 
@@ -494,16 +534,35 @@ function handleStreamChunk(chunk) {
 
 // Handle the end of a stream
 function handleStreamEnd(fullResponse) {
+  logger.info('[handleStreamEnd] Received fullResponse:', fullResponse ? fullResponse.substring(0, 100) + '...' : 'empty_or_null');
   // Find the message that was streaming
   const streamingMessageContainer = chatContainer.querySelector('[data-streaming="true"]');
   
   if (streamingMessageContainer) {
+    logger.info('[handleStreamEnd] Found streamingMessageContainer:', streamingMessageContainer);
     // Update the content with the full response
     const contentDiv = streamingMessageContainer.querySelector('.message-content');
-    contentDiv.innerHTML = window.marked.parse(fullResponse);
+    if (!contentDiv) {
+      logger.error('[handleStreamEnd] streamingMessageContainer found, but .message-content child is missing!');
+      // Attempt to clear the streaming attribute anyway to prevent multiple stuck loaders
+      streamingMessageContainer.removeAttribute('data-streaming');
+      return;
+    }
+    logger.info('[handleStreamEnd] Found contentDiv:', contentDiv);
     
+    try {
+      logger.info('[handleStreamEnd] Attempting to parse Markdown...');
+      contentDiv.innerHTML = window.marked.parse(fullResponse);
+      logger.info('[handleStreamEnd] Markdown parsed and applied to contentDiv.');
+    } catch (markdownError) {
+      logger.error('[handleStreamEnd] Error parsing Markdown:', markdownError);
+      contentDiv.textContent = fullResponse; // Fallback to plain text
+      logger.info('[handleStreamEnd] Applied fullResponse as plain text due to Markdown error.');
+    }
+        
     // Remove the streaming flag
     streamingMessageContainer.removeAttribute('data-streaming');
+    logger.info('[handleStreamEnd] Removed data-streaming attribute.');
     
     // Add action buttons for assistant messages
     const buttonContainer = document.createElement('div');
@@ -528,12 +587,18 @@ function handleStreamEnd(fullResponse) {
     
     // Ensure buttons are added to the correct position
     streamingMessageContainer.appendChild(buttonContainer);
+    logger.info('[handleStreamEnd] Action buttons added.');
     
     // Add to chat history (assistant response)
-    chatHistory.push({ role: 'assistant', content: fullResponse });
+    // This is for UI consistency; actual saving is done by service worker.
+    // Let's remove this to avoid potential confusion or double entries if logic changes.
+    // chatHistory.push({ role: 'assistant', content: fullResponse });
     
     // Scroll to bottom
     chatContainer.scrollTop = chatContainer.scrollHeight;
+    logger.info('[handleStreamEnd] Scrolled to bottom.');
+  } else {
+    logger.warn('[handleStreamEnd] streamingMessageContainer not found! UI might be stuck or already updated.');
   }
 }
 
@@ -910,11 +975,11 @@ function showExtractionError(error) {
   jinaExtractBtn.disabled = false;
   readabilityExtractBtn.disabled = false;
   
-  // Save error message but don't display it, for debugging
-  extractionError.dataset.errorMsg = error;
-  
-  // Display a simple error message
-  extractionError.innerHTML = 'Failed to extract content.';
+  // Display the actual error message or a default
+  const displayError = typeof error === 'string' && error ? error : 'Failed to extract content.';
+  extractionError.textContent = displayError;
+  extractionError.dataset.errorMsg = displayError; // Keep original error in dataset for debugging
+  logger.error('Extraction Error Displayed:', displayError); // Log the error being shown
 }
 
 // Show restricted page message
@@ -1170,5 +1235,16 @@ async function loadContentSectionHeight() {
     const defaultHeight = 100;
     contentSection.style.height = `${defaultHeight}px`;
     contentSection.style.maxHeight = `${defaultHeight}px`;
+  }
+}
+
+// Helper function to update the UI of extraction method buttons
+function updateExtractionButtonUI() {
+  if (jinaExtractBtn && readabilityExtractBtn) {
+    jinaExtractBtn.classList.toggle('active', currentExtractionMethod === 'jina');
+    readabilityExtractBtn.classList.toggle('active', currentExtractionMethod === 'readability');
+    logger.info(`Extraction buttons UI updated. Jina active: ${currentExtractionMethod === 'jina'}, Readability active: ${currentExtractionMethod === 'readability'}`);
+  } else {
+    logger.warn('Extraction buttons not found, cannot update UI.');
   }
 } 

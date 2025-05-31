@@ -562,6 +562,25 @@ body {
 .input-actions {
   display: flex;
   gap: 8px;
+  align-items: center;
+}
+
+/* Added for the new checkbox container */
+.include-page-content-container {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: auto;
+}
+
+.include-page-content-container label {
+  font-size: 12px;
+  color: var(--text-color);
+  cursor: pointer;
+}
+
+.include-page-content-container input[type="checkbox"] {
+  cursor: pointer;
 }
 
 .send-btn {
@@ -587,33 +606,26 @@ body {
   cursor: not-allowed;
 }
 
-.export-btn {
-  width: 28px;
-  height: 28px;
-  border: none;
-  background-color: var(--light-gray);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  font-weight: bold;
-}
-
+.export-btn,
 .clear-btn {
-  width: 28px;
-  height: 28px;
+  width: 36px;
+  height: 36px;
   border: none;
   background-color: var(--light-gray);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
-  font-weight: bold;
+  border-radius: 4px;
 }
 
-.export-btn:hover, .clear-btn:hover {
+.export-btn .material-icons,
+.clear-btn .material-icons {
+  font-size: 18px;
+}
+
+.export-btn:hover,
+.clear-btn:hover {
   background-color: var(--hover-color);
 }
 
