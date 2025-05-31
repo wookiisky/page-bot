@@ -6,7 +6,12 @@ importScripts('../js/modules/logger.js');
 importScripts('../js/modules/config_manager.js');
 importScripts('../js/modules/storage.js');
 importScripts('../js/modules/content_extractor.js');
+// Ensure providers are loaded before llm_service.js
+// importScripts('../js/modules/page_content_extractor.js'); // Removed as it does not exist
+importScripts('../js/modules/llm_provider/gemini_provider.js');
+importScripts('../js/modules/llm_provider/openai_provider.js');
 importScripts('../js/modules/llm_service.js');
+// importScripts('../js/modules/jina_ai_service.js'); // Removed as it does not exist
 
 // Initialize logger for service worker
 const serviceLogger = logger ? logger.createModuleLogger('ServiceWorker') : console;

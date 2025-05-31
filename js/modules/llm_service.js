@@ -30,7 +30,12 @@ llmService.callLLM = async function(
   try {
     switch (llmConfig.provider) {
       case 'gemini':
-        return await callGemini(
+        // Ensure geminiProvider is loaded
+        if (typeof geminiProvider === 'undefined' || typeof geminiProvider.execute !== 'function') {
+            llmLogger.error('Gemini provider not loaded correctly.');
+            throw new Error('Gemini provider not loaded. Ensure js/modules/llm_provider/gemini_provider.js is included.');
+        }
+        return await geminiProvider.execute(
           messages, 
           llmConfig, 
           systemPrompt, 
@@ -40,7 +45,12 @@ llmService.callLLM = async function(
           errorCallback
         );
       case 'openai':
-        return await callOpenAI(
+        // Ensure openaiProvider is loaded
+        if (typeof openaiProvider === 'undefined' || typeof openaiProvider.execute !== 'function') {
+            llmLogger.error('OpenAI provider not loaded correctly.');
+            throw new Error('OpenAI provider not loaded. Ensure js/modules/llm_provider/openai_provider.js is included.');
+        }
+        return await openaiProvider.execute(
           messages, 
           llmConfig, 
           systemPrompt, 
@@ -54,7 +64,14 @@ llmService.callLLM = async function(
     }
   } catch (error) {
     llmLogger.error(`LLM API call failed`, { provider: llmConfig.provider, error: error.message });
-    errorCallback(error);
+    // Ensure errorCallback is a function before calling it
+    if (typeof errorCallback === 'function') {
+        errorCallback(error);
+    } else {
+        llmLogger.error('errorCallback is not a function. Original error:', error.message);
+        // Optionally, rethrow the error or handle it in a default way
+        // throw error; 
+    }
   }
 }
 
