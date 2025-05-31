@@ -3,7 +3,7 @@
 // Import logger module (fallback to console if not available in offscreen context)
 const logger = (() => {
   try {
-    return window.logger ? window.logger.createModuleLogger('Offscreen') : console;
+    return window.logger ? window.logger.createModuleLogger('@offscreen') : console;
   } catch (e) {
     return console;
   }

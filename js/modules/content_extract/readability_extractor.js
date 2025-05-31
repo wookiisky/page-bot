@@ -4,7 +4,7 @@
 // It assumes 'logger' is available in the global scope.
 
 const readabilityExtractorLogger = logger.createModuleLogger('ReadabilityExtractor');
-const OFFSCREEN_DOCUMENT_PATH_FOR_READABILITY = '/offscreen.html'; // Ensure this path is correct
+const OFFSCREEN_DOCUMENT_PATH_FOR_READABILITY = '/offscreen/offscreen.html'; // Updated path to match new location
 
 // Helper function to manage the offscreen document for Readability
 async function getOrCreateOffscreenDocumentForReadability() {
