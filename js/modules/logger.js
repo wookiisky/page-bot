@@ -1,6 +1,18 @@
 // Read Bot Logger Module
 // Universal logging utility with configurable levels and formatting
 
+// Store a local reference to the original console methods
+const _originalConsole = {
+  log: console.log,
+  error: console.error,
+  warn: console.warn,
+  debug: console.debug,
+  group: console.group,
+  groupEnd: console.groupEnd,
+  time: console.time,
+  timeEnd: console.timeEnd
+};
+
 // Create a global logger object
 var logger = {};
 
@@ -151,7 +163,7 @@ logger.group = function(label, module) {
   if (!loggerConfig.enableConsole) return;
   
   const formattedLabel = _formatMessage('INFO', label, module);
-  console.group(formattedLabel);
+  _originalConsole.group(formattedLabel);
 }
 
 /**
@@ -159,7 +171,7 @@ logger.group = function(label, module) {
  */
 logger.groupEnd = function() {
   if (!loggerConfig.enableConsole) return;
-  console.groupEnd();
+  _originalConsole.groupEnd();
 }
 
 /**
@@ -171,7 +183,7 @@ logger.time = function(label, module) {
   if (!loggerConfig.enableConsole) return;
   
   const timerLabel = module ? `${module}: ${label}` : label;
-  console.time(timerLabel);
+  _originalConsole.time(timerLabel);
 }
 
 /**
@@ -183,7 +195,7 @@ logger.timeEnd = function(label, module) {
   if (!loggerConfig.enableConsole) return;
   
   const timerLabel = module ? `${module}: ${label}` : label;
-  console.timeEnd(timerLabel);
+  _originalConsole.timeEnd(timerLabel);
 }
 
 /**
@@ -275,17 +287,17 @@ function _outputToConsole(logEntry) {
   let consoleMethod;
   switch (level) {
     case 'ERROR':
-      consoleMethod = console.error;
+      consoleMethod = _originalConsole.error;
       break;
     case 'WARN':
-      consoleMethod = console.warn;
+      consoleMethod = _originalConsole.warn;
       break;
     case 'DEBUG':
     case 'TRACE':
-      consoleMethod = console.debug;
+      consoleMethod = _originalConsole.debug;
       break;
     default:
-      consoleMethod = console.log;
+      consoleMethod = _originalConsole.log;
   }
   
   // Apply color styling if enabled

@@ -191,8 +191,10 @@ function setupEventListeners() {
   // Listen for messages from background script (for streaming LLM responses and tab changes)
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'LLM_STREAM_CHUNK') {
+      logger.debug('Sidebar received LLM_STREAM_CHUNK:', message.chunk);
       handleStreamChunk(message.chunk);
     } else if (message.type === 'LLM_STREAM_END') {
+      logger.debug('Sidebar received LLM_STREAM_END');
       handleStreamEnd(message.fullResponse);
     } else if (message.type === 'LLM_ERROR') {
       handleLlmError(message.error);
@@ -417,7 +419,10 @@ async function sendUserMessage() {
   logger.info('User message appended to UI');
   
   // Create a placeholder for the assistant's response
-  const assistantMessage = appendMessageToUI('assistant', '');
+  const assistantMessageDiv = appendMessageToUI('assistant', '');
+  if (assistantMessageDiv) {
+    assistantMessageDiv.dataset.markdownBuffer = ''; // Initialize buffer
+  }
   
   // Add message to chat history (will be updated with full response later)
   chatHistory.push({ role: 'user', content: userMessage });
@@ -456,21 +461,31 @@ async function sendUserMessage() {
 // Handle streaming chunk from LLM
 function handleStreamChunk(chunk) {
   // Find the message that's currently streaming
-  const streamingMessage = chatContainer.querySelector('[data-streaming="true"] .message-content');
+  const streamingMessageContainer = chatContainer.querySelector('[data-streaming="true"]');
   
-  if (streamingMessage) {
-    // Remove spinner if it exists
-    const spinner = streamingMessage.querySelector('.spinner');
+  if (streamingMessageContainer) {
+    const streamingMessageContentDiv = streamingMessageContainer.querySelector('.message-content');
+    if (!streamingMessageContentDiv) return;
+
+    // Remove spinner if it exists (should only be there on the first chunk)
+    const spinner = streamingMessageContentDiv.querySelector('.spinner');
     if (spinner) {
       spinner.remove();
     }
     
-    // Append the new chunk and re-render markdown
-    const currentContent = streamingMessage.innerHTML ? 
-                           window.marked.parse(window.marked.parseInline(streamingMessage.innerHTML)) + chunk : 
-                           chunk;
+    // Append the new chunk to the buffer and re-render markdown
+    let currentBuffer = streamingMessageContainer.dataset.markdownBuffer || '';
+    currentBuffer += chunk;
+    streamingMessageContainer.dataset.markdownBuffer = currentBuffer;
     
-    streamingMessage.innerHTML = window.marked.parse(currentContent);
+    try {
+      streamingMessageContentDiv.innerHTML = window.marked.parse(currentBuffer);
+    } catch (error) {
+        logger.error('Error parsing markdown during stream:', error);
+        // Fallback: append as text, but this might mix with previous HTML
+        const textNode = document.createTextNode(chunk);
+        streamingMessageContentDiv.appendChild(textNode);
+    }
     
     // Scroll to bottom
     chatContainer.scrollTop = chatContainer.scrollHeight;
@@ -673,6 +688,7 @@ async function reExtractContent(method) {
 async function loadQuickInputs() {
   try {
     const config = await getConfig();
+    logger.info('Loaded config in loadQuickInputs:', config);
     
     if (config && config.quickInputs && config.quickInputs.length > 0) {
       quickInputsContainer.innerHTML = '';
@@ -751,20 +767,20 @@ async function sendQuickMessage(displayText, sendTextTemplate) {
 // Get config from background script
 async function getConfig() {
   try {
-    serviceLogger.info('Sidebar: Requesting config from service worker...');
+    logger.info('Requesting config from service worker...', 'Sidebar getConfig');
     const response = await chrome.runtime.sendMessage({
       type: 'GET_CONFIG'
     });
-    serviceLogger.info('Sidebar: Received response from service worker for GET_CONFIG:', response);
+    logger.info('Received response from service worker for GET_CONFIG:', 'Sidebar getConfig', response);
     
     if (response && response.type === 'CONFIG_LOADED' && response.config) {
       return response.config;
     } else {
-      serviceLogger.error('Sidebar: Error loading config or config missing in response. Response:', response);
+      logger.error('Error loading config or config missing in response. Response:', 'Sidebar getConfig', response);
       return null;
     }
   } catch (error) {
-    serviceLogger.error('Sidebar: Error requesting config via sendMessage:', error);
+    logger.error('Error requesting config via sendMessage:', 'Sidebar getConfig', error);
     return null;
   }
 }

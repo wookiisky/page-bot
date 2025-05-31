@@ -555,6 +555,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             // Create a stream callback to send chunks to sidebar
             const streamCallback = (chunk) => {
               if (chunk !== undefined && chunk !== null) {
+                serviceLogger.debug('ServiceWorker received chunk from LLMService, sending to UI:', chunk);
                 safeSendMessage({ type: 'LLM_STREAM_CHUNK', chunk });
                 serviceLogger.debug('Sending chunk to UI:', chunk);
               }
@@ -564,9 +565,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               serviceLogger.info('LLM stream finished. Full response:', fullResponse);
               safeSendMessage({ type: 'LLM_STREAM_END', fullResponse });
               
-              // Signal completion to sidebar
-              if (message.payload && message.payload.currentUrl) {
-                await storage.saveChatHistory(message.payload.currentUrl, chatHistory);
+              // Update and save chat history
+              if (message.payload && message.payload.currentUrl && messages) {
+                const updatedMessages = [
+                  ...messages,
+                  { role: 'assistant', content: fullResponse }
+                ];
+                await storage.saveChatHistory(message.payload.currentUrl, updatedMessages);
+                serviceLogger.info('Chat history updated and saved for URL:', message.payload.currentUrl);
+              } else {
+                serviceLogger.warn('Could not save chat history: missing currentUrl or messages in payload.');
               }
             };
             
