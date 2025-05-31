@@ -22,40 +22,40 @@ body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   color: var(--text-color);
   background-color: var(--bg-color);
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
 .container {
   max-width: 800px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 1rem;
 }
 
 header {
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
   text-align: center;
 }
 
 h1 {
-  font-size: 2rem;
-  margin-bottom: 0.5rem;
+  font-size: 1.8rem;
+  margin-bottom: 0.25rem;
   color: var(--primary-color);
 }
 
 h2 {
-  font-size: 1.5rem;
-  margin-bottom: 1rem;
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
   color: var(--text-color);
 }
 
 h3 {
-  font-size: 1.2rem;
-  margin: 1rem 0;
+  font-size: 1.1rem;
+  margin: 0.5rem 0;
   color: var(--text-color);
 }
 
 p {
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
   color: #5f6368;
 }
 
@@ -63,27 +63,25 @@ p {
   background-color: var(--bg-color);
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  padding: 1.5rem;
-  margin-bottom: 2rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-.form-group {
-  margin-bottom: 1.5rem;
-}
 
 label {
   display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 500;
+  margin-bottom: 0.25rem;
+  
+  font-size: 0.9rem;
 }
 
 input, select, textarea {
   width: 100%;
-  padding: 0.75rem;
+  padding: 0.5rem;
   border: 1px solid var(--border-color);
   border-radius: 4px;
-  font-size: 1rem;
+  font-size: 0.9rem;
   font-family: inherit;
 }
 
@@ -94,22 +92,22 @@ input:focus, select:focus, textarea:focus {
 
 small {
   display: block;
-  margin-top: 0.5rem;
+  margin-top: 0.25rem;
   color: #5f6368;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
 }
 
 .actions {
   display: flex;
   justify-content: flex-end;
-  gap: 1rem;
-  margin-top: 2rem;
+  gap: 0.5rem;
+  margin-top: 1rem;
 }
 
 .primary-btn, .secondary-btn {
-  padding: 0.75rem 1.5rem;
+  padding: 0.6rem 1.2rem;
   border-radius: 4px;
-  font-size: 1rem;
+  font-size: 0.9rem;
   font-weight: 500;
   cursor: pointer;
   transition: background-color 0.2s;
@@ -138,18 +136,33 @@ small {
 /* LLM Settings */
 .llm-settings {
   border-left: 3px solid var(--primary-color);
-  padding-left: 1rem;
-  margin: 1rem 0;
+  padding-left: 0.75rem;
+  margin: 0.5rem 0;
 }
 
 /* Quick Input Items */
 .quick-input-item {
   border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 1rem;
-  margin-bottom: 1rem;
+  border-radius: 6px;
+  padding: 0.5rem;
+  margin-bottom: 0.5rem;
   background-color: var(--light-gray);
   position: relative;
+}
+
+.quick-input-item .form-group {
+  margin-bottom: 0.4rem;
+}
+
+.quick-input-item label {
+  margin-bottom: 0.15rem;
+  font-size: 0.85rem;
+}
+
+.quick-input-item input,
+.quick-input-item textarea {
+  padding: 0.4rem;
+  font-size: 0.85rem;
 }
 
 .remove-quick-input-btn {
@@ -157,15 +170,16 @@ small {
   color: white;
   border: none;
   border-radius: 4px;
-  padding: 0.5rem 0.75rem;
+  padding: 0.3rem 0.5rem;
   cursor: pointer;
   position: absolute;
-  top: 1rem;
-  right: 1rem;
+  top: 0.3rem;
+  right: 0.3rem;
+  font-size: 0.8rem;
 }
 
 #addQuickInputBtn {
-  margin-top: 1rem;
+  margin-top: 0.5rem;
 }
 
 /* Notification */
