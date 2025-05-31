@@ -33,20 +33,11 @@ let loggerConfig = {
   maxStorageEntries: 1000,
   timestampFormat: 'ISO', // 'ISO' or 'locale'
   modulePrefix: true,
-  colorOutput: true
+  colorOutput: false
 };
 
 // Storage key for log entries
 const LOG_STORAGE_KEY = 'readBotLogs';
-
-// Color codes for different log levels
-const LOG_COLORS = {
-  ERROR: '#ff4444',
-  WARN: '#ffaa00',
-  INFO: '#4488ff',
-  DEBUG: '#44ff44',
-  TRACE: '#888888'
-};
 
 /**
  * Configure the logger
@@ -301,12 +292,7 @@ function _outputToConsole(logEntry) {
   }
   
   // Apply color styling if enabled
-  if (loggerConfig.colorOutput && LOG_COLORS[level]) {
-    const style = `color: ${LOG_COLORS[level]}; font-weight: bold;`;
-    consoleMethod(`%c${formattedMessage}`, style, ...(args || []));
-  } else {
-    consoleMethod(formattedMessage, ...(args || []));
-  }
+  consoleMethod(formattedMessage, ...(args || []));
 }
 
 // Store log entry to chrome storage
