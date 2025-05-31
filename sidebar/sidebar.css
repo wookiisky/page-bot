@@ -464,19 +464,14 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-left: 8px;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-  min-width: 28px;
+  visibility: visible;
+  opacity: 1;
   margin-top: 0;
   position: sticky;
   top: 10px;
   align-self: flex-start;
-}
-
-/* Show buttons when message is hovered */
-.assistant-message:hover .message-buttons {
-  opacity: 1;
+  min-width: 28px;
+  z-index: 10;
 }
 
 .message-action-btn {
