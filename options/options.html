@@ -90,12 +90,27 @@
           </div>
         </section>
         
-        <!-- Sidebar Size Settings -->
+        <!-- Sidebar Settings -->
         <section class="settings-section">
           <h2>Sidebar Settings</h2>
           <div class="form-group">
             <label for="contentDisplayHeight">Content Display Height (px)</label>
             <input type="number" id="contentDisplayHeight" name="contentDisplayHeight" placeholder="e.g., 300">            
+          </div>
+        </section>
+        
+        <!-- Cache Settings -->
+        <section class="settings-section">
+          <h2>Cache Settings</h2>
+          <div class="form-group cache-item-group">
+            <label>Cached Pages:</label>
+            <p><span id="cachedPagesDisplay">0</span></p>
+            <button type="button" id="clearPagesCacheBtn" class="secondary-btn small-btn">Clear Pages</button>
+          </div>
+          <div class="form-group cache-item-group">
+            <label>Cached Chats:</label>
+            <p><span id="cachedChatsDisplay">0</span></p>
+            <button type="button" id="clearChatsCacheBtn" class="secondary-btn small-btn">Clear Chats</button>
           </div>
         </section>
         

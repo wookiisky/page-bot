@@ -198,4 +198,28 @@ small {
 
 .notification.show {
   transform: translateY(0);
+}
+
+/* Cache Item Group Styles */
+.cache-item-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.cache-item-group label {
+  flex-shrink: 0;
+  margin-right: 5px;
+}
+
+.cache-item-group p {
+  margin: 0;
+  min-width: 20px;
+}
+
+.cache-item-group .small-btn {
+  padding: 4px 8px;
+  font-size: 0.9em;
+  margin-left: auto;
 } 

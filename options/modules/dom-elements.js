@@ -29,6 +29,12 @@ export const domElements = {
   contentDisplayHeight: document.getElementById('contentDisplayHeight'),
   systemPrompt: document.getElementById('systemPrompt'),
   
+  // Cache settings elements
+  cachedPagesDisplay: document.getElementById('cachedPagesDisplay'),
+  cachedChatsDisplay: document.getElementById('cachedChatsDisplay'),
+  clearPagesCacheBtn: document.getElementById('clearPagesCacheBtn'),
+  clearChatsCacheBtn: document.getElementById('clearChatsCacheBtn'),
+  
   // Action buttons
   addQuickInputBtn: document.getElementById('addQuickInputBtn'),
   saveBtn: document.getElementById('saveBtn'),
