@@ -165,56 +165,80 @@ chrome.action.onClicked.addListener(async (tab) => {
 
 // Tab activation listener
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
+  const { tabId } = activeInfo;
+  serviceLogger.info('Tab activated, tabId:', tabId);
+
   try {
-    const tab = await chrome.tabs.get(activeInfo.tabId);
-    if (tab && tab.url) {
-      serviceLogger.info('Tab switched to:', tab.url);
-      
-      // Close side panel when switching tabs
+    // Phase 1: Attempt to disable the side panel for the newly activated tab.
+    // This ensures that on any tab switch, the panel *tries* to hide for the new tab.
+    try {
+      await chrome.sidePanel.setOptions({
+        tabId: tabId,
+        enabled: false
+      });
+      serviceLogger.debug('Side panel rule set to "disabled" for activated tab:', tabId);
+    } catch (error) {
+      // Log and continue. This might happen if the tabId is for a very restricted context
+      // where even setting enabled:false is disallowed.
+      serviceLogger.warn('Error initially setting side panel to "disabled" for tab:', tabId, error.message);
+    }
+
+    // Phase 2: Get tab details to decide on re-enabling and to inform the sidebar.
+    let tab;
+    try {
+      tab = await chrome.tabs.get(tabId);
+    } catch (getTabError) {
+      serviceLogger.error('Failed to get tab details for tabId:', tabId, getTabError.message);
+      // Side panel rule remains "disabled" (from Phase 1). No further action possible without tab details.
+      return;
+    }
+
+    // If tab is null or undefined (should ideally be caught by error above, but as a safeguard)
+    if (!tab) {
+        serviceLogger.warn('Tab object not retrieved for tabId:', tabId, '(after get call, but no error thrown). Side panel remains disabled.');
+        return;
+    }
+    
+    const currentUrl = tab.url; // This can be undefined for some tabs (e.g. chrome://newtab before navigation)
+    // Log a shortened title to avoid overly long log messages
+    const tabTitle = tab.title ? tab.title.substring(0, 70) + (tab.title.length > 70 ? '...' : '') : undefined;
+    serviceLogger.info('Processing activated tab:', { tabId, url: currentUrl, title: tabTitle });
+
+    // Phase 3: Conditionally re-enable the side panel after a short delay.
+    setTimeout(async () => {
       try {
-        // Get all windows and close side panel in each
-        const windows = await chrome.windows.getAll();
-        for (const window of windows) {
-          try {
-            // Try to close side panel for this window
-            await chrome.sidePanel.setOptions({
-              tabId: activeInfo.tabId,
-              enabled: false
-            });
-            serviceLogger.debug('Side panel closed due to tab switch');
-            
-            // Re-enable after a short delay
-            setTimeout(async () => {
-              try {
-                await chrome.sidePanel.setOptions({
-                  tabId: activeInfo.tabId,
-                  enabled: true
-                });
-                serviceLogger.debug('Side panel re-enabled for new tab');
-              } catch (error) {
-                serviceLogger.debug('Error re-enabling side panel:', error.message);
-              }
-            }, 100);
-            
-            break; // Only need to do this once
-          } catch (error) {
-            // Ignore errors for individual windows
-          }
+        // isRestrictedPage(undefined) correctly returns true.
+        if (!isRestrictedPage(currentUrl)) {
+          await chrome.sidePanel.setOptions({
+            tabId: tabId,
+            enabled: true
+          });
+          serviceLogger.debug('Side panel rule set to "enabled" for non-restricted tab:', { tabId, url: currentUrl });
+        } else {
+          // For restricted pages (or undefined URL), the panel rule remains "disabled" (as per Phase 1).
+          serviceLogger.debug('Side panel remains "disabled" for restricted tab (or URL undefined):', { tabId, url: currentUrl });
         }
       } catch (error) {
-        serviceLogger.debug('Error closing side panel on tab switch:', error.message);
+        serviceLogger.warn('Error in conditional re-enabling of side panel for tab:', {tabId, url: currentUrl}, error.message);
       }
-      
-      // Send tab change notification to sidebar if it's open
+    }, 100); // 100ms delay matches previous logic
+
+    // Phase 4: Notify the sidebar about the tab change if URL is available.
+    if (currentUrl) {
       safeSendMessage({
         type: 'TAB_CHANGED',
-        url: tab.url
+        url: currentUrl
+        // Consider sending tabId if the sidebar needs it: tabId: tabId
       });
     } else {
-      serviceLogger.warn('Tab activation: tab or tab.url is undefined');
+      serviceLogger.info('Tab activated but URL is undefined. Not sending TAB_CHANGED message.', { tabId });
+      // Optionally, send a message indicating an unknown/invalid page state to the sidebar
+      // safeSendMessage({ type: 'TAB_CONTEXT_UNAVAILABLE', tabId: tabId });
     }
+
   } catch (error) {
-    serviceLogger.error('Error handling tab activation:', error);
+    // Catch-all for unexpected errors in the listener's main body
+    serviceLogger.error('Critical error in onActivated listener for tabId:', tabId, error);
   }
 });
 
