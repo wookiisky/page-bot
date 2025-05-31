@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Read Bot",
+  "name": "Page Bot",
   "version": "1.0.0",
   "description": "Chat with web pages using LLMs",
   "icons": {
@@ -14,7 +14,7 @@
       "48": "icons/icon48.png",
       "128": "icons/icon128.png"
     },
-    "default_title": "Read Bot"
+    "default_title": "Page Bot"
   },
   "side_panel": {
     "default_path": "sidebar/sidebar.html"

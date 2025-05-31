@@ -1,4 +1,4 @@
-// Read Bot Content Extractor Module Orchestrator
+// Page Bot Content Extractor Module Orchestrator
 // Handles delegation to specific content extraction modules.
 
 // Create a global contentExtractor object

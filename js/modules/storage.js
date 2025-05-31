@@ -1,4 +1,4 @@
-// Read Bot Storage Module
+// Page Bot Storage Module
 // Handles page data caching with LRU (Least Recently Used) strategy
 
 // Create a global storage object

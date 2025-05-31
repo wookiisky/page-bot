@@ -1,4 +1,4 @@
-// Read Bot Config Manager Module
+// Page Bot Config Manager Module
 // Handles configuration loading, saving, and default values
 
 // Create a global configManager object

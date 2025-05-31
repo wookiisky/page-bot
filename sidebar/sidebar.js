@@ -1,4 +1,4 @@
-// Read Bot Popup JavaScript
+// Page Bot Popup JavaScript
 // Handles UI interaction and communication with the background script
 
 // Import logger module
@@ -924,7 +924,7 @@ function exportConversation() {
     return;
   }
   
-  let markdownContent = `# Read Bot Conversation\n\n`;
+  let markdownContent = `# Page Bot Conversation\n\n`;
   markdownContent += `URL: ${currentUrl}\n\n`;
   markdownContent += `Extracted content summary:\n\`\`\`\n${extractedContent.substring(0, 300)}${extractedContent.length > 300 ? '...' : ''}\n\`\`\`\n\n`;
   markdownContent += `## Conversation\n\n`;
@@ -1052,7 +1052,7 @@ function showRestrictedPageMessage() {
     <div style="font-size: 18px; margin-bottom: 10px;">🚫</div>
     <div style="font-weight: bold; margin-bottom: 10px;">Restricted Page</div>
     <div style="font-size: 14px; line-height: 1.4; margin-bottom: 15px;">
-      Read Bot cannot work on Chrome internal pages (chrome://, chrome-extension://, etc.).
+      Page Bot cannot work on Chrome internal pages (chrome://, chrome-extension://, etc.).
     </div>
     <div style="font-size: 14px; line-height: 1.4; color: #888;">
       Please navigate to a regular webpage to use the extension.

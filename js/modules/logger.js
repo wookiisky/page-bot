@@ -1,4 +1,4 @@
-// Read Bot Logger Module
+// Page Bot Logger Module
 // Universal logging utility with configurable levels and formatting
 
 // Store a local reference to the original console methods

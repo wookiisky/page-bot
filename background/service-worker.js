@@ -1,4 +1,4 @@
-// Read Bot service worker script
+// Page Bot service worker script
 // Handles background processes, messaging, and coordinates between UI and functionality
 
 // Import required modules using importScripts instead of dynamic import
@@ -37,7 +37,7 @@ const serviceLogger = logger ? logger.createModuleLogger('ServiceWorker') : cons
 
 // Set up event listeners when extension is installed or updated
 chrome.runtime.onInstalled.addListener(async () => {
-  serviceLogger.info('Read Bot extension installed or updated');
+  serviceLogger.info('Page Bot extension installed or updated');
   
   await configManager.initializeIfNeeded();
   
@@ -45,7 +45,7 @@ chrome.runtime.onInstalled.addListener(async () => {
 });
 
 // Extension startup
-serviceLogger.info('Read Bot service worker started');
+serviceLogger.info('Page Bot service worker started');
 
 // Handle extension icon clicks
 chrome.action.onClicked.addListener(async (tab) => {
@@ -57,16 +57,16 @@ chrome.action.onClicked.addListener(async (tab) => {
       await chrome.notifications.create({
         type: 'basic',
         iconUrl: chrome.runtime.getURL('icons/icon48.png'),
-        title: 'Read Bot',
-        message: 'Read Bot cannot work on Chrome internal pages (chrome://, chrome-extension://, etc.). Please navigate to a regular webpage to use the extension.'
+        title: 'Page Bot',
+        message: 'Page Bot cannot work on Chrome internal pages (chrome://, chrome-extension://, etc.). Please navigate to a regular webpage to use the extension.'
       });
     } catch (error) {
       serviceLogger.error('Error creating notification:', error);
       try {
         await chrome.notifications.create({
           type: 'basic',
-          title: 'Read Bot',
-          message: 'Read Bot cannot work on Chrome internal pages (chrome://, chrome-extension://, etc.). Please navigate to a regular webpage to use the extension.'
+          title: 'Page Bot',
+          message: 'Page Bot cannot work on Chrome internal pages (chrome://, chrome-extension://, etc.). Please navigate to a regular webpage to use the extension.'
         });
       } catch (fallbackError) {
         serviceLogger.error('Error creating fallback notification:', fallbackError);

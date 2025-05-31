@@ -1,4 +1,4 @@
-// Readability Extractor Module for Read Bot
+// Readability Extractor Module for Page Bot
 
 // This script should be imported by the main content_extractor.js using importScripts.
 // It assumes 'logger' is available in the global scope.

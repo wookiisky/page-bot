@@ -1,4 +1,4 @@
-// Read Bot utils.js
+// Page Bot utils.js
 // Common utility functions
 
 // Create a global utils object

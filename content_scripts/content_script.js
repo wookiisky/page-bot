@@ -1,4 +1,4 @@
-// Read Bot content script
+// Page Bot content script
 // Runs in the context of web pages
 // Handles content extraction and communication with the background script
 
@@ -100,4 +100,4 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 // Log when the content script has loaded
-logger.info('Read Bot content script loaded on:', document.location.href); 
+logger.info('Page Bot content script loaded on:', document.location.href); 
