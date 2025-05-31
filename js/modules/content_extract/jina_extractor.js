@@ -7,12 +7,9 @@ const jinaExtractorLogger = logger.createModuleLogger('JinaExtractor');
 
 // Extract with Jina AI
 async function extractWithJina(url, apiKey, responseTemplate) {
-  jinaExtractorLogger.debug('Starting Jina extraction', { url, hasApiKey: !!apiKey, hasTemplate: !!responseTemplate });
-  
   const strategies = [];
   
   if (apiKey) {
-    jinaExtractorLogger.debug('Adding authenticated Jina strategy');
     strategies.push({
       name: 'r.jina.ai (authenticated)',
       execute: () => callJinaAPI('https://r.jina.ai/', url, {
@@ -25,7 +22,6 @@ async function extractWithJina(url, apiKey, responseTemplate) {
     });
   }
   
-  jinaExtractorLogger.debug('Adding free Jina strategy');
   strategies.push({
     name: 'r.jina.ai (free)',
     execute: () => callJinaAPI('https://r.jina.ai/', url, {
@@ -41,7 +37,6 @@ async function extractWithJina(url, apiKey, responseTemplate) {
   for (let i = 0; i < strategies.length; i++) {
     const strategy = strategies[i];
     try {
-      jinaExtractorLogger.debug(`Trying Jina strategy: ${strategy.name}`, { url, attempt: i + 1, total: strategies.length });
       const result = await strategy.execute();
       
       if (result) {
@@ -69,8 +64,6 @@ async function callJinaAPI(baseUrl, url, options, expectJson = true) {
     requestUrl = baseUrl;
   }
   
-  jinaExtractorLogger.debug(`Calling Jina API`, { requestUrl, method: options.method });
-  
   const response = await fetch(requestUrl, options);
   
   if (!response.ok) {
@@ -95,14 +88,7 @@ async function callJinaAPI(baseUrl, url, options, expectJson = true) {
 
 // Format Jina AI response using template
 function formatJinaResponse(data, template, originalUrl) {
-  jinaExtractorLogger.debug('Formatting Jina response', { 
-    hasData: !!data, 
-    hasTemplate: !!template, 
-    originalUrl: originalUrl
-  });
-  
   if (!template) {
-    jinaExtractorLogger.debug('No template provided, returning raw content');
     return data.content || data.text || JSON.stringify(data, null, 2);
   }
   
@@ -111,14 +97,11 @@ function formatJinaResponse(data, template, originalUrl) {
   const description = data.description || '';
   const content = data.content || ''; // This is the main content
   
-  jinaExtractorLogger.debug('Extracted fields for template', { title, url, description, contentLength: content.length });
-  
   let formatted = template
     .replace(/\{title\}/g, title)
     .replace(/\{url\}/g, url) 
     .replace(/\{description\}/g, description)
     .replace(/\{content\}/g, content);
   
-  jinaExtractorLogger.debug('Template formatting completed', { resultLength: formatted.length });
   return formatted;
 } 

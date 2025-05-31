@@ -160,7 +160,6 @@ chrome.action.onClicked.addListener(async (tab) => {
       // Log current behavior for debugging
       try {
         const behavior = await chrome.sidePanel.getPanelBehavior();
-        serviceLogger.debug('Current panel behavior:', behavior);
       } catch (behaviorError) {
         serviceLogger.error('Error getting panel behavior:', behaviorError);
       }
@@ -181,7 +180,6 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
         tabId: tabId,
         enabled: false
       });
-      serviceLogger.debug('Side panel rule set to "disabled" for activated tab:', tabId);
     } catch (error) {
       // Log and continue. This might happen if the tabId is for a very restricted context
       // where even setting enabled:false is disallowed.
@@ -218,10 +216,8 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
             tabId: tabId,
             enabled: true
           });
-          serviceLogger.debug('Side panel rule set to "enabled" for non-restricted tab:', { tabId, url: currentUrl });
         } else {
           // For restricted pages (or undefined URL), the panel rule remains "disabled" (as per Phase 1).
-          serviceLogger.debug('Side panel remains "disabled" for restricted tab (or URL undefined):', { tabId, url: currentUrl });
         }
       } catch (error) {
         serviceLogger.warn('Error in conditional re-enabling of side panel for tab:', {tabId, url: currentUrl}, error.message);
@@ -363,7 +359,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                       { type: 'GET_HTML_CONTENT' },
                       (response) => {
                         if (chrome.runtime.lastError) {
-                           serviceLogger.error('Error getting HTML from tab:', chrome.runtime.lastError.message);
+                           serviceLogger.info('Error getting HTML from tab:', chrome.runtime.lastError.message);
                            if (chrome.runtime.lastError.message === "Could not establish connection. Receiving end does not exist.") {
                              resolve('CONTENT_SCRIPT_NOT_CONNECTED');
                            } else {
@@ -454,7 +450,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                   { type: 'GET_HTML_CONTENT' },
                   (response) => {
                     if (chrome.runtime.lastError) {
-                      serviceLogger.error('Error getting HTML from tab (switch method):', chrome.runtime.lastError.message);
+                      serviceLogger.warn('Error getting HTML from tab (switch method):', chrome.runtime.lastError.message);
                       if (chrome.runtime.lastError.message === "Could not establish connection. Receiving end does not exist.") {
                         resolve('CONTENT_SCRIPT_NOT_CONNECTED');
                       } else {
@@ -541,7 +537,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                   { type: 'GET_HTML_CONTENT' },
                   (response) => {
                      if (chrome.runtime.lastError) {
-                        serviceLogger.error('Error getting HTML from tab (re-extract):', chrome.runtime.lastError.message);
+                        serviceLogger.warn('Error getting HTML from tab (re-extract):', chrome.runtime.lastError.message);
                         if (chrome.runtime.lastError.message === "Could not establish connection. Receiving end does not exist.") {
                           resolve('CONTENT_SCRIPT_NOT_CONNECTED');
                         } else {
@@ -617,9 +613,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             // Create a stream callback to send chunks to sidebar
             const streamCallback = (chunk) => {
               if (chunk !== undefined && chunk !== null) {
-                serviceLogger.debug('ServiceWorker received chunk from LLMService, sending to UI:', chunk);
                 safeSendMessage({ type: 'LLM_STREAM_CHUNK', chunk });
-                serviceLogger.debug('Sending chunk to UI:', chunk);
               }
             };
             

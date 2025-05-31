@@ -8,7 +8,6 @@ var geminiProvider = (function() {
     // Handle Gemini streaming response
     async function handleGeminiStream(apiUrl, requestBody, streamCallback, doneCallback, errorCallback) {
         try {
-            geminiLogger.debug('handleGeminiStream: Fetching URL:', apiUrl);
             const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: {
@@ -16,9 +15,6 @@ var geminiProvider = (function() {
                 },
                 body: JSON.stringify(requestBody)
             });
-
-            geminiLogger.debug('handleGeminiStream: Response status:', response.status);
-            geminiLogger.debug('handleGeminiStream: Response headers:', Object.fromEntries(response.headers.entries()));
 
             if (!response.ok) {
                 const errorText = await response.text();
@@ -33,20 +29,14 @@ var geminiProvider = (function() {
             let chunkCount = 0;
 
             while (true) {
-                geminiLogger.debug('handleGeminiStream: Calling reader.read()');
                 const { done, value } = await reader.read();
 
-                geminiLogger.debug('handleGeminiStream: reader.read() result:', { done, chunkSize: value ? value.byteLength : 0 });
-
                 if (done) {
-                    geminiLogger.debug('handleGeminiStream: Stream finished (reader.read() done is true)');
                     break;
                 }
 
                 chunkCount++;
-                geminiLogger.debug(`handleGeminiStream: Received chunk #${chunkCount}`);
                 const decodedChunk = decoder.decode(value, { stream: true });
-                geminiLogger.debug(`handleGeminiStream: Decoded chunk #${chunkCount}:`, decodedChunk);
                 buffer += decodedChunk;
 
                 const lines = buffer.split('\n');
@@ -65,7 +55,6 @@ var geminiProvider = (function() {
                             const parsedData = JSON.parse(data);
                             if (parsedData.candidates && parsedData.candidates[0]?.content?.parts?.[0]?.text) {
                                 const textChunk = parsedData.candidates[0].content.parts[0].text;
-                                geminiLogger.debug('GeminiProvider dispatching textChunk to streamCallback:', textChunk);
                                 fullResponse += textChunk;
                                 streamCallback(textChunk);
                             }
@@ -106,10 +95,8 @@ var geminiProvider = (function() {
             let apiUrl;
             if (streamCallback && doneCallback) {
                 apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?key=${apiKey}&alt=sse`;
-                geminiLogger.debug('Using Gemini streamGenerateContent endpoint:', apiUrl);
             } else {
                 apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-                geminiLogger.debug('Using Gemini generateContent endpoint:', apiUrl);
             }
 
             const contents = [];

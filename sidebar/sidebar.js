@@ -1022,7 +1022,7 @@ function showExtractionError(error) {
     }
   }
   extractionError.textContent = errorMessage;
-  logger.error('Extraction Error:', errorMessage);
+  logger.info('Extraction Error:', errorMessage);
   updateExtractionButtonUI(); // Ensure buttons are updated based on state
 }
 

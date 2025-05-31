@@ -81,7 +81,6 @@ storage.getPageContent = async function(url, method = 'default') {
       return result[key];
     }
     
-    storageLogger.debug(`No cached content found for ${method} method`, { url });
     return null;
   } catch (error) {
     storageLogger.error('Error getting page content:', { url, method, error: error.message });
@@ -105,7 +104,6 @@ storage.getChatHistory = async function(url) {
     
     const chatHistory = result[key] || [];
     if (chatHistory.length > 0) {
-      storageLogger.debug('Chat history retrieved', { url, messageCount: chatHistory.length });
     }
     
     return chatHistory;

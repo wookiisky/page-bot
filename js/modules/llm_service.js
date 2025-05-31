@@ -99,10 +99,8 @@ async function callGemini(
     let apiUrl;
     if (streamCallback && doneCallback) {
       apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?key=${apiKey}&alt=sse`;
-      llmLogger.debug('Using Gemini streamGenerateContent endpoint:', apiUrl);
     } else {
       apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-      llmLogger.debug('Using Gemini generateContent endpoint:', apiUrl);
     }
     
     // Build the contents array
@@ -207,7 +205,6 @@ async function callGemini(
 // Handle Gemini streaming response
 async function handleGeminiStream(apiUrl, requestBody, streamCallback, doneCallback, errorCallback) {
   try {
-    llmLogger.debug('handleGeminiStream: Fetching URL:', apiUrl); // Log API URL
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
@@ -216,12 +213,8 @@ async function handleGeminiStream(apiUrl, requestBody, streamCallback, doneCallb
       body: JSON.stringify(requestBody)
     });
     
-    llmLogger.debug('handleGeminiStream: Response status:', response.status); // Log response status
-    llmLogger.debug('handleGeminiStream: Response headers:', Object.fromEntries(response.headers.entries())); // Log response headers
-
     if (!response.ok) {
       const errorText = await response.text();
-      llmLogger.error('handleGeminiStream: Response not OK', { status: response.status, errorText });
       throw new Error(`Gemini API streaming error: ${response.status} - ${errorText}`);
     }
     
@@ -232,21 +225,15 @@ async function handleGeminiStream(apiUrl, requestBody, streamCallback, doneCallb
     let chunkCount = 0; // Counter for chunks
     
     while (true) {
-      llmLogger.debug('handleGeminiStream: Calling reader.read()'); // Log before read()
       const { done, value } = await reader.read();
       
-      llmLogger.debug('handleGeminiStream: reader.read() result:', { done, chunkSize: value ? value.byteLength : 0 }); // Log read() result
-
       if (done) {
-        llmLogger.debug('handleGeminiStream: Stream finished (reader.read() done is true)');
         break;
       }
       
       chunkCount++;
-      llmLogger.debug(`handleGeminiStream: Received chunk #${chunkCount}`);
       // Decode the chunk and add it to the buffer
       const decodedChunk = decoder.decode(value, { stream: true });
-      llmLogger.debug(`handleGeminiStream: Decoded chunk #${chunkCount}:`, decodedChunk);
       buffer += decodedChunk;
       
       // Process SSE format
@@ -269,7 +256,6 @@ async function handleGeminiStream(apiUrl, requestBody, streamCallback, doneCallb
             
             if (parsedData.candidates && parsedData.candidates[0]?.content?.parts?.[0]?.text) {
               const textChunk = parsedData.candidates[0].content.parts[0].text;
-              llmLogger.debug('LLMService dispatching textChunk to streamCallback:', textChunk);
               fullResponse += textChunk;
               streamCallback(textChunk);
             }

@@ -91,12 +91,12 @@ class OptionsPage {
     logger.info('Loading cache statistics');
     try {
       const items = await chrome.storage.local.get(null);
-      logger.debug('Retrieved items from chrome.storage.local:', JSON.stringify(items)); // Detailed log of all items
+      // logger.debug('Retrieved items from chrome.storage.local:', JSON.stringify(items)); // Detailed log of all items
       let pageCacheCount = 0;
       let chatHistoryCount = 0;
       for (const key in items) {
         if (Object.prototype.hasOwnProperty.call(items, key)) { // Check if key is own property
-          logger.debug(`Processing key: ${key}`); // Log each key being processed
+          // logger.debug(`Processing key: ${key}`); // Log each key being processed
           if (key.startsWith('readBotContent_')) {
             pageCacheCount++;
           } else if (key.startsWith('readBotChat_')) {

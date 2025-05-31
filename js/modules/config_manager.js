@@ -98,7 +98,6 @@ configManager.getConfig = async function() {
         }
       };
       
-      configLogger.debug('Configuration merged', { hasJinaTemplate: !!mergedConfig.jinaResponseTemplate });
       return mergedConfig;
     } else {
       // No config found, initialize and return default
@@ -115,8 +114,6 @@ configManager.getConfig = async function() {
 
 // Save configuration
 configManager.saveConfig = async function(newConfig) {
-  configLogger.debug('Saving configuration', { hasLLMConfig: !!newConfig.llm, hasJinaKey: !!newConfig.jinaApiKey });
-
   try {
     await chrome.storage.sync.set({ [STORAGE_KEY]: newConfig });
     configLogger.info('Configuration successfully saved to chrome.storage.sync');
