@@ -19,43 +19,54 @@ async function handleMessages(message, sender, sendResponse) {
 
   switch (message.type) {
     case 'extract-content':
+    case 'extract-content-readability':
       try {
-        const article = processWithReadability(message.htmlString);
+        logger.debug(`Processing message type: ${message.type}`, { pageUrl: message.pageUrl });
+        const article = processWithReadability(message.htmlString, message.pageUrl);
         if (article && article.content) {
           const markdown = htmlToMarkdown(article.content);
-          const fullContent = `# ${article.title}\n\n${markdown}`;
+          const fullContent = `# ${article.title || 'Untitled'}\n\n${markdown}`;
+          logger.info('Readability processing successful', { pageUrl: message.pageUrl, title: article.title });
           sendResponse({ success: true, content: fullContent });
         } else {
-          logger.error('Readability failed to parse content or extract title/content');
+          logger.error('Readability failed to parse content or extract title/content', { pageUrl: message.pageUrl });
           sendResponse({ success: false, error: 'Readability failed to parse content or extract title/content.' });
         }
       } catch (e) {
-        logger.error('Error in offscreen document during Readability processing:', e);
+        logger.error('Error in offscreen document during Readability processing:', { pageUrl: message.pageUrl, error: e.message, stack: e.stack });
         sendResponse({ success: false, error: e.toString() });
       }
       return true; // Indicates an asynchronous response.
     default:
-      logger.warn(`Unexpected message type received: '${message.type}'.`);
+      logger.warn(`Unexpected message type received: '${message.type}'.`, { receivedMessage: message });
       sendResponse({ success: false, error: `Unknown message type: ${message.type}` });
       return false;
   }
 }
 
-function processWithReadability(htmlString) {
+function processWithReadability(htmlString, pageUrl) {
   if (!self.Readability) {
     logger.error('Readability library not loaded in offscreen document.');
     throw new Error('Readability library not loaded.');
   }
-  // Readability expects a DOM document. Create one from the string.
   const parser = new DOMParser();
   const doc = parser.parseFromString(htmlString, 'text/html');
   
-  // Update the document URI if available, otherwise Readability might have issues.
-  // For now, we'll use a generic base URL. Consider passing the actual URL if needed.
-  if (doc.baseURI === "about:blank" && doc.head) {
+  // Set baseURI for proper relative URL resolution by Readability
+  if (pageUrl) {
+    let base = doc.querySelector('base');
+    if (!base) {
+      base = doc.createElement('base');
+      doc.head.appendChild(base);
+    }
+    base.href = pageUrl;
+    logger.debug('Set base href for Readability document', { pageUrl });
+  } else if (doc.baseURI === "about:blank" && doc.head) {
+    // Fallback if pageUrl is not provided, though it's less ideal
     let base = doc.createElement('base');
-    base.href = 'http://localhost/'; // Or a more relevant base URL
+    base.href = 'http://localhost/'; 
     doc.head.appendChild(base);
+    logger.warn('pageUrl not provided for Readability, using generic localhost base.');
   }
 
   const reader = new self.Readability(doc);
