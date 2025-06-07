@@ -12,17 +12,17 @@
     <div class="header">
       <div class="extraction-controls">
         <div class="extraction-methods">
-          <button id="jinaExtractBtn" class="extraction-btn jina-btn" title="Extract with Jina AI">
+          <button id="jinaExtractBtn" class="btn-base extraction-btn jina-btn" title="Extract with Jina AI">
             <img src="../icons/jina32.png" alt="Jina AI" class="jina-icon">
           </button>
-          <button id="readabilityExtractBtn" class="extraction-btn readability-btn active" title="Extract with Readability.js">R</button>
+          <button id="readabilityExtractBtn" class="btn-base extraction-btn readability-btn active" title="Extract with Readability.js">R</button>
         </div>
         
         <div class="action-buttons">
-          <button id="copyContentBtn" class="action-btn" title="Copy extracted content">
+          <button id="copyContentBtn" class="btn-base action-btn" title="Copy extracted content">
             <i class="material-icons">content_copy</i>
           </button>
-          <button id="retryExtractBtn" class="action-btn" title="Retry extraction">
+          <button id="retryExtractBtn" class="btn-base action-btn" title="Retry extraction">
             <i class="material-icons">refresh</i>
           </button>
         </div>
@@ -73,17 +73,17 @@
       
       <!-- Input area -->
       <div class="input-container">
+        <div id="inputResizeHandle" class="input-resize-handle"></div>
         <div class="input-wrapper">
-          <textarea id="userInput" placeholder="Ask ..." rows="2"></textarea>
-          <button id="sendBtn" class="send-btn"><i class="material-icons">send</i></button>
-        </div>
-        <div class="input-actions">
-          <div class="include-page-content-container">
-            <input type="checkbox" id="includePageContent" name="includePageContent" checked>
-            <label for="includePageContent">page content in system Prompt</label>
+          <textarea id="userInput" placeholder="Ask ..." rows="1"></textarea>
+          <button id="sendBtn" class="btn-base send-btn"><i class="material-icons">send</i></button>
+          <div class="input-actions">
+            <button id="includePageContentBtn" class="btn-base action-btn enabled" title="Include page content in sys prompt">
+              <i class="material-icons">description</i>
+            </button>
+            <button id="clearBtn" class="btn-base clear-btn" title="Clear Conversation"><i class="material-icons">delete_sweep</i></button>
+            <button id="exportBtn" class="btn-base export-btn" title="Export Conversation"><i class="material-icons">save_alt</i></button>
           </div>
-          <button id="clearBtn" class="clear-btn" title="Clear Conversation"><i class="material-icons">delete_sweep</i></button>
-          <button id="exportBtn" class="export-btn" title="Export Conversation"><i class="material-icons">save_alt</i></button>
         </div>
       </div>
     </div>

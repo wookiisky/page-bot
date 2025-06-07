@@ -15,6 +15,12 @@ let currentExtractionMethod = 'readability'; // Track current extraction method
 let isResizing = false;
 let startY = 0;
 let startHeight = 0;
+let isInputResizing = false; // 输入框调整状态
+let inputStartY = 0;
+let inputStartHeight = 0;
+
+// Page content inclusion state
+let includePageContent = true;
 
 // DOM Elements
 const extractedContentElem = document.getElementById('extractedContent');
@@ -35,11 +41,15 @@ const copyContentBtn = document.getElementById('copyContentBtn');
 const retryExtractBtn = document.getElementById('retryExtractBtn');
 const contentSection = document.getElementById('contentSection');
 const resizeHandle = document.getElementById('resizeHandle');
-const includePageContentCheckbox = document.getElementById('includePageContent');
+const includePageContentBtn = document.getElementById('includePageContentBtn');
+const inputResizeHandle = document.getElementById('inputResizeHandle');
 
 // Initialize when the panel loads
 document.addEventListener('DOMContentLoaded', async () => {
   logger.info('Side panel loaded');
+  
+  // Debug the input resize handle element
+  logger.info('Input resize handle element:', inputResizeHandle);
   
   // Apply configured size for side panel
   await applyPanelSize();
@@ -169,6 +179,9 @@ function setupEventListeners() {
   jinaExtractBtn.addEventListener('click', () => switchExtractionMethod('jina'));
   readabilityExtractBtn.addEventListener('click', () => switchExtractionMethod('readability'));
   
+  // Include page content button
+  includePageContentBtn.addEventListener('click', toggleIncludePageContent);
+  
   // Image paste handling
   userInput.addEventListener('paste', handleImagePaste);
   
@@ -192,7 +205,10 @@ function setupEventListeners() {
   resizeHandle.addEventListener('mousedown', startResize);
   document.addEventListener('mousemove', doResize);
   document.addEventListener('mouseup', stopResize);
-
+  
+  // Input resize handle events
+  inputResizeHandle.addEventListener('mousedown', startInputResize);
+  
   // Listen for messages from background script (for streaming LLM responses and tab changes)
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'LLM_STREAM_CHUNK') {
@@ -396,14 +412,14 @@ function appendMessageToUI(role, content, imageBase64, isStreaming = false) {
     // For user messages, add edit and retry buttons
     if (role === 'user') {
       const editButton = document.createElement('button');
-      editButton.className = 'message-action-btn';
+      editButton.className = 'btn-base message-action-btn';
       editButton.innerHTML = '<i class="material-icons">edit</i>';
       editButton.title = 'Edit Message';
       editButton.dataset.messageId = messageDiv.id;
       editButton.onclick = () => editMessage(messageDiv);
       
       const retryButton = document.createElement('button');
-      retryButton.className = 'message-action-btn';
+      retryButton.className = 'btn-base message-action-btn';
       retryButton.innerHTML = '<i class="material-icons">refresh</i>';
       retryButton.title = 'Retry Message';
       retryButton.dataset.messageId = messageDiv.id;
@@ -414,14 +430,14 @@ function appendMessageToUI(role, content, imageBase64, isStreaming = false) {
     }
     
     const copyTextButton = document.createElement('button');
-    copyTextButton.className = 'message-action-btn';
+    copyTextButton.className = 'btn-base message-action-btn';
     copyTextButton.innerHTML = '<i class="material-icons">content_copy</i>';
     copyTextButton.title = 'Copy Text';
     copyTextButton.dataset.content = content;
     copyTextButton.onclick = () => copyMessageText(content);
     
     const copyMarkdownButton = document.createElement('button');
-    copyMarkdownButton.className = 'message-action-btn';
+    copyMarkdownButton.className = 'btn-base message-action-btn';
     copyMarkdownButton.innerHTML = '<i class="material-icons">code</i>';
     copyMarkdownButton.title = 'Copy Markdown';
     copyMarkdownButton.dataset.content = content; // For user messages, this will be plain text
@@ -469,19 +485,19 @@ async function sendUserMessage() {
   // Default system prompt from config (usually contains {CONTENT})
   systemPromptTemplateForPayload = config.systemPrompt;
 
-  if (includePageContentCheckbox.checked) {
+  if (includePageContent) {
     logger.info('Including page content in the message. Extracted content will be sent.');
     systemPromptTemplateForPayload = systemPromptTemplateForPayload + '\n\nPage Content:\n' + extractedContent; 
   } else {
     logger.info('Not including page content in the message. Only using for {CONTENT} replacement.');
   }
-  logger.info(['sys', includePageContentCheckbox.checked, systemPromptTemplateForPayload]);
+  logger.info(['sys', includePageContent, systemPromptTemplateForPayload]);
     
   
 
   // Show loading indicator in chat
   // Make sure this is called *before* sending the message to ensure UI updates promptly
-  const loadingMsgId = appendMessageToUI('assistant', '<div class="spinner"></div> Thinking...', null, true);
+  const loadingMsgId = appendMessageToUI('assistant', '<div class="spinner"></div>', null, true);
   
   // Remove image after sending if one was attached
   if (imageBase64) {
@@ -518,6 +534,9 @@ async function sendUserMessage() {
         if (contentDiv) contentDiv.innerHTML = `<span style="color: var(--error-color);">Error: Failed to send message.</span>`;
         loadingMsgId.removeAttribute('data-streaming');
     }
+    
+    // Re-enable send button if there was an error
+    sendBtn.disabled = false;
   }
 }
 
@@ -593,14 +612,14 @@ function handleStreamEnd(fullResponse) {
     
     // Copy text button
     const copyTextButton = document.createElement('button');
-    copyTextButton.className = 'message-action-btn';
+    copyTextButton.className = 'btn-base message-action-btn';
     copyTextButton.innerHTML = '<i class="material-icons">content_copy</i>';
     copyTextButton.title = 'Copy Text';
     copyTextButton.onclick = () => copyMessageText(fullResponse);
     
     // Copy markdown button
     const copyMarkdownButton = document.createElement('button');
-    copyMarkdownButton.className = 'message-action-btn';
+    copyMarkdownButton.className = 'btn-base message-action-btn';
     copyMarkdownButton.innerHTML = '<i class="material-icons">code</i>';
     copyMarkdownButton.title = 'Copy Markdown';
     copyMarkdownButton.onclick = () => copyMessageMarkdown(fullResponse);
@@ -620,8 +639,15 @@ function handleStreamEnd(fullResponse) {
     // Scroll to bottom
     chatContainer.scrollTop = chatContainer.scrollHeight;
     logger.info('[handleStreamEnd] Scrolled to bottom.');
+    
+    // Re-enable send button after response is complete
+    sendBtn.disabled = false;
+    logger.info('[handleStreamEnd] Re-enabled send button.');
   } else {
     logger.warn('[handleStreamEnd] streamingMessageContainer not found! UI might be stuck or already updated.');
+    // Re-enable send button even if streaming message container not found
+    sendBtn.disabled = false;
+    logger.info('[handleStreamEnd] Re-enabled send button (fallback path).');
   }
 }
 
@@ -646,6 +672,7 @@ function handleLlmError(error, streamingMessageElement = null) {
   
   // Re-enable send button if it was disabled
   sendBtn.disabled = false;
+  logger.info('Re-enabled send button after LLM error.');
 }
 
 // Switch extraction method (check cache first, extract if needed)
@@ -777,7 +804,7 @@ async function loadQuickInputs() {
       
       config.quickInputs.forEach((quickInput, index) => {
         const button = document.createElement('button');
-        button.className = 'quick-input-btn';
+        button.className = 'btn-base quick-input-btn';
         button.textContent = quickInput.displayText;
         button.dataset.index = index;
         button.dataset.sendText = quickInput.sendText;
@@ -797,6 +824,19 @@ async function loadQuickInputs() {
 
 // New function to send quick button messages
 async function sendQuickMessage(displayText, sendTextTemplate) {
+  if (!sendTextTemplate) return;
+  
+  // Replace {CONTENT} placeholder with page content
+  let userText = sendTextTemplate;
+  if (sendTextTemplate.includes('{CONTENT}')) {
+    if (includePageContent && extractedContent) {
+      userText = sendTextTemplate.replace('{CONTENT}', extractedContent);
+    } else {
+      userText = sendTextTemplate.replace('{CONTENT}', '');
+      logger.info('No page content included in quick input or extraction not enabled');
+    }
+  }
+  
   // Display the original displayText in the bubble
   const userMessage = displayText;
   
@@ -808,7 +848,7 @@ async function sendQuickMessage(displayText, sendTextTemplate) {
   appendMessageToUI('user', userMessage);
   
   // Show loading indicator in chat for assistant's response
-  const assistantLoadingMessage = appendMessageToUI('assistant', '<div class="spinner"></div> Thinking...', null, true);
+  const assistantLoadingMessage = appendMessageToUI('assistant', '<div class="spinner"></div>', null, true);
   
   // Add the original message to chat history
   chatHistory.push({ role: 'user', content: userMessage });
@@ -824,7 +864,7 @@ async function sendQuickMessage(displayText, sendTextTemplate) {
     const processedSendTextTemplate = sendTextTemplate.replace('{CONTENT}', extractedContent || '');
 
     // Now, handle the "includePageContent" checkbox for the main system prompt
-    if (includePageContentCheckbox.checked && extractedContent) {
+    if (includePageContent && extractedContent) {
       logger.info('[QuickMessage] Including page content in the system prompt. Extracted content will be part of system prompt.');
       // Append extracted content to the system prompt template
       systemPromptTemplateForPayload = systemPromptTemplateForPayload + '\n\nPage Content:\n' + extractedContent;
@@ -1325,22 +1365,13 @@ async function retryMessage(messageDiv) {
   sendBtn.disabled = true;
   
   // Show loading indicator in chat
-  const loadingMsgId = appendMessageToUI('assistant', '<div class="spinner"></div> Thinking...', null, true);
+  const loadingMsgId = appendMessageToUI('assistant', '<div class="spinner"></div>', null, true);
   
   try {
-    // Prepare payload for service worker
-    let systemPromptTemplateForPayload = '';
-    let pageContentForPayload = extractedContent; // 始终将extractedContent传递下去
-    const config = await getConfig();
-    
-    // Default system prompt from config
-    systemPromptTemplateForPayload = config.systemPrompt;
-    
-    if (includePageContentCheckbox.checked) {
-      logger.info('Including page content in retry message. Extracted content will be sent.');
-      systemPromptTemplateForPayload = systemPromptTemplateForPayload + '\n\nPage Content:\n' + extractedContent;
-    } else {
-      logger.info('Not including page content in retry message. Only using for {CONTENT} replacement.');
+    // Get original system prompt and include page content if needed
+    let systemPromptForRetry = config.systemPrompt;
+    if (includePageContent) {
+      systemPromptForRetry += '\n\nPage Content:\n' + extractedContent;
     }
     
     // Send message to background script for LLM processing
@@ -1348,8 +1379,8 @@ async function retryMessage(messageDiv) {
       type: 'SEND_LLM_MESSAGE',
       payload: {
         messages: chatHistory,
-        systemPromptTemplate: systemPromptTemplateForPayload,
-        extractedPageContent: pageContentForPayload,
+        systemPromptTemplate: systemPromptForRetry,
+        extractedPageContent: extractedContent,
         imageBase64: null, // No image for retry
         currentUrl: currentUrl,
         extractionMethod: currentExtractionMethod
@@ -1393,18 +1424,40 @@ function startResize(e) {
 }
 
 function doResize(e) {
-  if (!isResizing) return;
+  // Content section resize logic
+  if (isResizing) {
+    const deltaY = e.clientY - startY;
+    const newHeight = startHeight + deltaY;
+    
+    // Set minimum and maximum heights
+    const minHeight = 80;
+    const maxHeight = window.innerHeight * 0.7; // Maximum 70% of window height
+    
+    if (newHeight >= minHeight && newHeight <= maxHeight) {
+      contentSection.style.height = `${newHeight}px`;
+      contentSection.style.maxHeight = `${newHeight}px`;
+    }
+  }
   
-  const deltaY = e.clientY - startY;
-  const newHeight = startHeight + deltaY;
-  
-  // Set minimum and maximum heights
-  const minHeight = 80;
-  const maxHeight = window.innerHeight * 0.7; // Maximum 70% of window height
-  
-  if (newHeight >= minHeight && newHeight <= maxHeight) {
-    contentSection.style.height = `${newHeight}px`;
-    contentSection.style.maxHeight = `${newHeight}px`;
+  // Input box resize logic - 调整为从上方调整高度
+  if (isInputResizing) {
+    // 当手柄在输入框上方时：
+    // - 向上拖动 (deltaY 为负) = 增加输入框高度（反转行为）
+    // - 向下拖动 (deltaY 为正) = 减小输入框高度（反转行为）
+    const deltaY = e.clientY - inputStartY;
+    // 反转deltaY，使向上拖动增加高度
+    const newHeight = Math.round(inputStartHeight - (deltaY * 1.2));
+    
+    // Set minimum and maximum heights for input
+    const minHeight = 30;
+    const maxHeight = 200;
+    
+    if (newHeight >= minHeight && newHeight <= maxHeight) {
+      userInput.style.height = `${newHeight}px`;
+      // 实时更新输入框高度
+      userInput.style.transition = 'none';
+      logger.info(`Resizing input to height: ${newHeight}px, deltaY: ${deltaY}`);
+    }
   }
 }
 
@@ -1419,6 +1472,20 @@ function stopResize() {
     // Save the new height to storage for persistence
     const currentHeight = contentSection.offsetHeight;
     saveContentSectionHeight(currentHeight);
+  }
+  
+  if (isInputResizing) {
+    isInputResizing = false;
+    
+    // Remove visual feedback
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    
+    // 恢复输入框的过渡效果
+    userInput.style.transition = '';
+    
+    // No need to save input height as per requirements
+    logger.info('Stopped input resize');
   }
 }
 
@@ -1503,4 +1570,31 @@ function updateExtractionButtonUI() {
   } else {
     logger.warn('Extraction buttons not found, cannot update UI.');
   }
+}
+
+// Toggle page content inclusion
+function toggleIncludePageContent() {
+  includePageContent = !includePageContent;
+  
+  // Update button appearance
+  if (includePageContent) {
+    includePageContentBtn.classList.add('enabled');
+  } else {
+    includePageContentBtn.classList.remove('enabled');
+  }
+  
+  logger.info(`Page content inclusion ${includePageContent ? 'enabled' : 'disabled'}`);
+}
+
+// Input box resize functions
+function startInputResize(e) {
+  isInputResizing = true;
+  inputStartY = e.clientY;
+  inputStartHeight = userInput.offsetHeight;
+  e.preventDefault();
+  
+  // Add visual feedback
+  document.body.style.cursor = 'ns-resize';
+  document.body.style.userSelect = 'none';
+  logger.info('Started input resize, initial height:', inputStartHeight);
 } 
