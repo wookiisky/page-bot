@@ -467,16 +467,16 @@ body {
 
 /* Message action buttons styles */
 .message-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-gap: 2px;
   visibility: hidden;
   opacity: 0;
   margin-top: 0;
   position: sticky;
   top: 10px;
   align-self: flex-start;
-  min-width: 20px;
+  min-width: 42px;
   z-index: 10;
 }
 
@@ -498,6 +498,7 @@ body {
   justify-content: center;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
   transition: all 0.2s ease;
+  margin: 1px;
 }
 
 .message-action-btn:hover {
