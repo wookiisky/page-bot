@@ -463,19 +463,17 @@ async function sendUserMessage() {
   
   // Prepare payload for service worker
   let systemPromptTemplateForPayload = '';
-  let pageContentForPayload = null;
+  let pageContentForPayload = extractedContent; // 始终将extractedContent传递下去
   const config = await getConfig();
 
   // Default system prompt from config (usually contains {CONTENT})
-  systemPromptTemplateForPayload = config.systemPrompt ;
-  pageContentForPayload = extractedContent;
+  systemPromptTemplateForPayload = config.systemPrompt;
 
   if (includePageContentCheckbox.checked) {
     logger.info('Including page content in the message. Extracted content will be sent.');
-    systemPromptTemplateForPayload = systemPromptTemplateForPayload + '\n\nContent:\n' + extractedContent; // Send current extracted content
+    systemPromptTemplateForPayload = systemPromptTemplateForPayload + '\n\nPage Content:\n' + extractedContent; 
   } else {
-    logger.info('Not including page content in the message. Extracted content will be null.');
-    
+    logger.info('Not including page content in the message. Only using for {CONTENT} replacement.');
   }
   logger.info(['sys', includePageContentCheckbox.checked, systemPromptTemplateForPayload]);
     
@@ -819,7 +817,7 @@ async function sendQuickMessage(displayText, sendTextTemplate) {
     // Get system prompt template and page content handling logic
     const config = await getConfig();
     let systemPromptTemplateForPayload = config.systemPrompt;
-    let pageContentForPayload = null; // Initialize to null
+    let pageContentForPayload = extractedContent; // 始终将extractedContent传递下去
 
     // Replace {CONTENT} placeholder in sendTextTemplate first
     // This ensures {CONTENT} in quick input's own template is handled correctly
@@ -829,18 +827,9 @@ async function sendQuickMessage(displayText, sendTextTemplate) {
     if (includePageContentCheckbox.checked && extractedContent) {
       logger.info('[QuickMessage] Including page content in the system prompt. Extracted content will be part of system prompt.');
       // Append extracted content to the system prompt template
-      systemPromptTemplateForPayload = systemPromptTemplateForPayload + '\n\nContent:\n' + extractedContent;
-      pageContentForPayload = extractedContent; // also send it separately for good measure, though service worker might primarily use the one in systemPrompt
+      systemPromptTemplateForPayload = systemPromptTemplateForPayload + '\n\nPage Content:\n' + extractedContent;
     } else {
-      logger.info('[QuickMessage] Not including page content in the system prompt, or no extracted content available.');
-      // If not checked, or no content, systemPromptTemplateForPayload remains as is (or from config)
-      // pageContentForPayload remains null or what it was (if we decide to pass it even if not in prompt)
-      // For clarity, explicitly set to null if checkbox is unchecked, matching sendUserMessage behavior
-      if (!includePageContentCheckbox.checked) {
-        pageContentForPayload = null;
-      } else {
-        pageContentForPayload = extractedContent; // if checkbox is checked but extractedContent was null/empty
-      }
+      logger.info('[QuickMessage] Not including page content in the system prompt. Only using for {CONTENT} replacement.');
     }
     
     // The actual text to be sent as the user's last turn
@@ -1115,12 +1104,8 @@ async function clearConversationAndContext() {
     // Clear chat history array
     chatHistory = [];
     
-    // Clear extracted content (we'll keep the current url)
-    extractedContent = '';
-    
-    // Disable features that require content
-    includePageContentCheckbox.checked = false;
-    includePageContentCheckbox.disabled = true;
+    // Keep extracted content, just clear the chat history
+    // extractedContent = '';
     
     // Clear from storage if we have a URL
     if (currentUrl) {
@@ -1345,18 +1330,17 @@ async function retryMessage(messageDiv) {
   try {
     // Prepare payload for service worker
     let systemPromptTemplateForPayload = '';
-    let pageContentForPayload = null;
+    let pageContentForPayload = extractedContent; // 始终将extractedContent传递下去
     const config = await getConfig();
     
     // Default system prompt from config
     systemPromptTemplateForPayload = config.systemPrompt;
-    pageContentForPayload = extractedContent;
     
     if (includePageContentCheckbox.checked) {
       logger.info('Including page content in retry message. Extracted content will be sent.');
-      systemPromptTemplateForPayload = systemPromptTemplateForPayload + '\n\nContent:\n' + extractedContent;
+      systemPromptTemplateForPayload = systemPromptTemplateForPayload + '\n\nPage Content:\n' + extractedContent;
     } else {
-      logger.info('Not including page content in retry message. Extracted content will be null.');
+      logger.info('Not including page content in retry message. Only using for {CONTENT} replacement.');
     }
     
     // Send message to background script for LLM processing
