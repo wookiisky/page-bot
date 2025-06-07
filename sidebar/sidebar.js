@@ -393,6 +393,26 @@ function appendMessageToUI(role, content, imageBase64, isStreaming = false) {
     const buttonContainer = document.createElement('div');
     buttonContainer.className = 'message-buttons';
     
+    // For user messages, add edit and retry buttons
+    if (role === 'user') {
+      const editButton = document.createElement('button');
+      editButton.className = 'message-action-btn';
+      editButton.innerHTML = '<i class="material-icons">edit</i>';
+      editButton.title = 'Edit Message';
+      editButton.dataset.messageId = messageDiv.id;
+      editButton.onclick = () => editMessage(messageDiv);
+      
+      const retryButton = document.createElement('button');
+      retryButton.className = 'message-action-btn';
+      retryButton.innerHTML = '<i class="material-icons">refresh</i>';
+      retryButton.title = 'Retry Message';
+      retryButton.dataset.messageId = messageDiv.id;
+      retryButton.onclick = () => retryMessage(messageDiv);
+      
+      buttonContainer.appendChild(editButton);
+      buttonContainer.appendChild(retryButton);
+    }
+    
     const copyTextButton = document.createElement('button');
     copyTextButton.className = 'message-action-btn';
     copyTextButton.innerHTML = '<i class="material-icons">content_copy</i>';
@@ -595,9 +615,9 @@ function handleStreamEnd(fullResponse) {
     logger.info('[handleStreamEnd] Action buttons added.');
     
     // Add to chat history (assistant response)
-    // This is for UI consistency; actual saving is done by service worker.
-    // Let's remove this to avoid potential confusion or double entries if logic changes.
-    // chatHistory.push({ role: 'assistant', content: fullResponse });
+    // The service worker handles saving to storage, but we need to update our local copy
+    chatHistory.push({ role: 'assistant', content: fullResponse });
+    logger.info('[handleStreamEnd] Updated local chatHistory with assistant response.');
     
     // Scroll to bottom
     chatContainer.scrollTop = chatContainer.scrollHeight;
@@ -1088,28 +1108,34 @@ async function applyPanelSize() {
 
 // Clear conversation and context
 async function clearConversationAndContext() {
-  if (!currentUrl) {
-    return;
-  }
-  
   try {
     // Clear UI
     chatContainer.innerHTML = '';
+    
+    // Clear chat history array
     chatHistory = [];
     
-    // Send request to clear data for this URL
-    const response = await chrome.runtime.sendMessage({
-      type: 'CLEAR_URL_DATA',
-      url: currentUrl
-    });
+    // Clear extracted content (we'll keep the current url)
+    extractedContent = '';
     
-    if (response && response.success) {
-      logger.info('Data cleared successfully for URL:', currentUrl);
-    } else {
-      logger.error('Error clearing data:', response.error);
+    // Disable features that require content
+    includePageContentCheckbox.checked = false;
+    includePageContentCheckbox.disabled = true;
+    
+    // Clear from storage if we have a URL
+    if (currentUrl) {
+      logger.info('Clearing chat history for URL:', currentUrl);
+      await chrome.runtime.sendMessage({
+        type: 'CLEAR_URL_DATA',
+        url: currentUrl,
+        clearContent: false, // Keep the content
+        clearChat: true // Just clear the chat
+      });
     }
+    
+    logger.info('Conversation cleared');
   } catch (error) {
-    logger.error('Error in clear conversation and context:', error);
+    logger.error('Error clearing conversation:', error);
   }
 }
 
@@ -1148,10 +1174,212 @@ function copyMessageText(content) {
 function copyMessageMarkdown(content) {
   navigator.clipboard.writeText(content)
     .then(() => showCopyToast('Markdown copied to clipboard'))
-    .catch(err => logger.error('Failed to copy Markdown:', err));
+    .catch(err => {
+      logger.error('Error copying markdown to clipboard:', err);
+      showCopyToast('Error copying markdown');
+    });
 }
 
-// Show copy success toast
+// Edit user message
+function editMessage(messageDiv) {
+  // Get message content div
+  const contentDiv = messageDiv.querySelector('.message-content');
+  if (!contentDiv) return;
+  
+  // Check if already in edit mode
+  if (contentDiv.classList.contains('edit-mode')) return;
+  
+  // Get current content (either from original or from previous edit)
+  const currentContent = contentDiv.textContent || contentDiv.innerText;
+  
+  // Save current content for potential cancel
+  contentDiv.dataset.originalContent = currentContent;
+  
+  // Create textarea
+  const textarea = document.createElement('textarea');
+  textarea.value = currentContent;
+  
+  // Replace content with textarea
+  contentDiv.innerHTML = '';
+  contentDiv.classList.add('edit-mode');
+  contentDiv.appendChild(textarea);
+  
+  // Focus textarea
+  textarea.focus();
+  
+  // Handle enter key (submit) and escape key (cancel)
+  textarea.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      const newContent = textarea.value.trim();
+      saveEditedMessage(messageDiv, newContent);
+    } else if (e.key === 'Escape') {
+      cancelEdit(contentDiv);
+    }
+  });
+  
+  // Add blur event to save when clicking outside
+  textarea.addEventListener('blur', function() {
+    const newContent = textarea.value.trim();
+    saveEditedMessage(messageDiv, newContent);
+  });
+  
+  logger.info(`Edit mode activated for message ${messageDiv.id}`);
+}
+
+// Save edited message
+function saveEditedMessage(messageDiv, newContent) {
+  const contentDiv = messageDiv.querySelector('.message-content');
+  if (!contentDiv || !contentDiv.classList.contains('edit-mode')) return;
+  
+  // Don't save if content is empty
+  if (!newContent) {
+    cancelEdit(contentDiv);
+    return;
+  }
+  
+  // Get original content for comparison
+  const originalContent = contentDiv.dataset.originalContent;
+  
+  // If content hasn't changed, just cancel edit
+  if (newContent === originalContent) {
+    cancelEdit(contentDiv);
+    return;
+  }
+  
+  // Update the content display
+  contentDiv.classList.remove('edit-mode');
+  contentDiv.innerHTML = newContent;
+  
+  // Find the message index in chatHistory
+  const messageIndex = findMessageIndexInHistory(messageDiv);
+  if (messageIndex !== -1) {
+    // Update the message in the chat history
+    chatHistory[messageIndex].content = newContent;
+    
+    // Update any button data attributes
+    const copyButtons = messageDiv.querySelectorAll('.message-action-btn[data-content]');
+    copyButtons.forEach(button => {
+      button.dataset.content = newContent;
+    });
+    
+    // Save updated chat history to storage
+    if (currentUrl) {
+      chrome.runtime.sendMessage({
+        type: 'SAVE_CHAT_HISTORY',
+        url: currentUrl,
+        chatHistory: chatHistory
+      }).then(() => {
+        logger.info(`Edited message saved to storage for URL: ${currentUrl}`);
+      }).catch(error => {
+        logger.error('Error saving edited message to storage:', error);
+      });
+    }
+    
+    logger.info(`Message ${messageDiv.id} edited successfully, chatHistory updated`);
+  } else {
+    logger.error(`Could not find message ${messageDiv.id} in chatHistory`);
+  }
+}
+
+// Cancel message edit
+function cancelEdit(contentDiv) {
+  if (!contentDiv.classList.contains('edit-mode')) return;
+  
+  // Restore original content
+  const originalContent = contentDiv.dataset.originalContent;
+  contentDiv.innerHTML = originalContent;
+  contentDiv.classList.remove('edit-mode');
+  
+  logger.info('Edit canceled, original content restored');
+}
+
+// Find message index in chatHistory
+function findMessageIndexInHistory(messageDiv) {
+  // Get the message's position in the DOM
+  const allMessages = Array.from(chatContainer.querySelectorAll('.chat-message'));
+  const messagePosition = allMessages.indexOf(messageDiv);
+  
+  if (messagePosition === -1 || messagePosition >= chatHistory.length) {
+    return -1;
+  }
+  
+  return messagePosition;
+}
+
+// Retry message (delete subsequent messages and resend)
+async function retryMessage(messageDiv) {
+  // Find the message index in chatHistory
+  const messageIndex = findMessageIndexInHistory(messageDiv);
+  if (messageIndex === -1) {
+    logger.error(`Could not find message ${messageDiv.id} in chat history for retry`);
+    return;
+  }
+  
+  // Get the edited message content
+  const contentDiv = messageDiv.querySelector('.message-content');
+  const messageContent = contentDiv.textContent || contentDiv.innerText;
+  
+  // Confirm that we want to delete all subsequent messages
+  const subsequentMessagesCount = chatHistory.length - messageIndex - 1;
+  
+  // Remove all subsequent messages from DOM
+  const allMessages = Array.from(chatContainer.querySelectorAll('.chat-message'));
+  for (let i = messageIndex + 1; i < allMessages.length; i++) {
+    chatContainer.removeChild(allMessages[i]);
+  }
+  
+  // Update chatHistory to include only messages up to and including the selected message
+  chatHistory = chatHistory.slice(0, messageIndex + 1);
+  
+  // Update the content of the message we're retrying (in case it was edited)
+  chatHistory[messageIndex].content = messageContent;
+  
+  // Clear input and disable send button
+  userInput.value = '';
+  sendBtn.disabled = true;
+  
+  // Show loading indicator in chat
+  const loadingMsgId = appendMessageToUI('assistant', '<div class="spinner"></div> Thinking...', null, true);
+  
+  try {
+    // Prepare payload for service worker
+    let systemPromptTemplateForPayload = '';
+    let pageContentForPayload = null;
+    const config = await getConfig();
+    
+    // Default system prompt from config
+    systemPromptTemplateForPayload = config.systemPrompt;
+    pageContentForPayload = extractedContent;
+    
+    if (includePageContentCheckbox.checked) {
+      logger.info('Including page content in retry message. Extracted content will be sent.');
+      systemPromptTemplateForPayload = systemPromptTemplateForPayload + '\n\nContent:\n' + extractedContent;
+    } else {
+      logger.info('Not including page content in retry message. Extracted content will be null.');
+    }
+    
+    // Send message to background script for LLM processing
+    await chrome.runtime.sendMessage({
+      type: 'SEND_LLM_MESSAGE',
+      payload: {
+        messages: chatHistory,
+        systemPromptTemplate: systemPromptTemplateForPayload,
+        extractedPageContent: pageContentForPayload,
+        imageBase64: null, // No image for retry
+        currentUrl: currentUrl,
+        extractionMethod: currentExtractionMethod
+      }
+    });
+    
+    logger.info('Retry message sent successfully');
+  } catch (error) {
+    logger.error('Error retrying message:', error);
+    handleLlmError('Failed to retry message', loadingMsgId);
+  }
+}
+
+// Show copy toast
 function showCopyToast(message) {
   // Create toast element
   const toast = document.createElement('div');
