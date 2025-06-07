@@ -73,50 +73,52 @@ function processWithReadability(htmlString, pageUrl) {
   return reader.parse();
 }
 
-
-// Convert HTML to Markdown (Copied from content_extractor.js)
+// Convert HTML to Markdown using Turndown
 function htmlToMarkdown(html) {
   try {
-    // Simple conversion for common HTML elements
-    let markdown = html;
+    if (typeof TurndownService === 'undefined') {
+      logger.error('TurndownService is not loaded.');
+      throw new Error('TurndownService is not loaded.');
+    }
+    const turndownService = new TurndownService({
+      headingStyle: 'atx', // Use '#' for headings
+      codeBlockStyle: 'fenced', // Use '```' for code blocks
+      bulletListMarker: '-', // Use '-' for unordered lists (common in GFM)
+      emDelimiter: '*', // Use '*' for emphasis (italic)
+      strongDelimiter: '**', // Use '**' for strong (bold)
+      linkStyle: 'inlined', // Output links as [text](url)
+      // fence: '```', // Default is '```', so not strictly necessary to set
+      // hr: '---', // Default is '* * *', GFM often uses '---'
+    });    
+
+    // For basic GFM compatibility, we might need to add rules for strikethrough if desired
+    // turndownService.addRule('strikethrough', {
+    //   filter: ['del', 's', 'strike'],
+    //   replacement: function (content) {
+    //     return '~' + content + '~'; // GFM uses single tilde for strikethrough
+    //   }
+    // });
+    // For now, we will stick to built-in options.
+
+    let markdown = turndownService.turndown(html);
     
-    markdown = markdown.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
-    markdown = markdown.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
-    markdown = markdown.replace(/<h1[^>]*>(.*?)<\/h1>/gi, '# $1\n\n');
-    markdown = markdown.replace(/<h2[^>]*>(.*?)<\/h2>/gi, '## $1\n\n');
-    markdown = markdown.replace(/<h3[^>]*>(.*?)<\/h3>/gi, '### $1\n\n');
-    markdown = markdown.replace(/<h4[^>]*>(.*?)<\/h4>/gi, '#### $1\n\n');
-    markdown = markdown.replace(/<h5[^>]*>(.*?)<\/h5>/gi, '##### $1\n\n');
-    markdown = markdown.replace(/<h6[^>]*>(.*?)<\/h6>/gi, '###### $1\n\n');
-    markdown = markdown.replace(/<p[^>]*>(.*?)<\/p>/gi, '$1\n\n');
-    markdown = markdown.replace(/<strong[^>]*>(.*?)<\/strong>/gi, '**$1**');
-    markdown = markdown.replace(/<b[^>]*>(.*?)<\/b>/gi, '**$1**');
-    markdown = markdown.replace(/<em[^>]*>(.*?)<\/em>/gi, '*$1*');
-    markdown = markdown.replace(/<i[^>]*>(.*?)<\/i>/gi, '*$1*');
-    markdown = markdown.replace(/<a href="(.*?)"[^>]*>(.*?)<\/a>/gi, '[$2]($1)');
-    markdown = markdown.replace(/<ul[^>]*>(.*?)<\/ul>/gi, (match, content) => content.replace(/<li[^>]*>(.*?)<\/li>/gi, '- $1\n') + '\n');
-    markdown = markdown.replace(/<ol[^>]*>(.*?)<\/ol>/gi, (match, content) => content.replace(/<li[^>]*>(.*?)<\/li>/gi, (liMatch, liContent, offset) => `${offset / liMatch.length + 1}. ${liContent}\n`) + '\n');
-    markdown = markdown.replace(/<li[^>]*>(.*?)<\/li>/gi, '- $1\n'); // Fallback for LI outside UL/OL though less common
-    markdown = markdown.replace(/<img src="(.*?)"[^>]* alt="(.*?)"[^>]*>/gi, '![$2]($1)');
-    markdown = markdown.replace(/<img src="(.*?)"[^>]*>/gi, '![]($1)');
-    markdown = markdown.replace(/<pre[^>]*><code[^>]*>(.*?)<\/code><\/pre>/gi, '```\n$1\n```\n\n');
-    markdown = markdown.replace(/<code[^>]*>(.*?)<\/code>/gi, '`$1`');
-    markdown = markdown.replace(/<blockquote[^>]*>(.*?)<\/blockquote>/gi, '> $1\n\n');
-    markdown = markdown.replace(/<hr[^>]*>/gi, '\n---\n\n');
-    markdown = markdown.replace(/<br[^>]*>/gi, '\n');
-    
-    markdown = markdown.replace(/<[^>]*>/g, '');
+    // Turndown might leave some HTML entities, decode them
+    // The decodeHtmlEntities function is still useful.
     markdown = decodeHtmlEntities(markdown);
+
+    // Additional cleanup: Turndown usually handles this well, but an extra pass for multiple blank lines can be useful.
     markdown = markdown.replace(/\n\s*\n\s*\n/g, '\n\n');
     
     return markdown.trim();
   } catch (error) {
-    logger.error('Error converting HTML to Markdown:', error);
-    return html; 
+    logger.error('Error converting HTML to Markdown with Turndown:', { errorMessage: error.message, stack: error.stack, originalHtmlLength: html.length });
+    // Fallback to a very basic stripping or return original HTML snippet to avoid breaking flow.
+    // For now, returning a simple error message in markdown.
+    return `> Error during Markdown conversion: ${error.message}`;
   }
 }
 
-// Decode HTML entities (Copied from content_extractor.js)
+// Decode HTML entities (Copied from content_extractor.js - still useful)
 function decodeHtmlEntities(text) {
   if (typeof document === 'undefined') {
     // This function cannot run in a Worker without a 'document' object.
