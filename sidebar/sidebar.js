@@ -43,13 +43,11 @@ const contentSection = document.getElementById('contentSection');
 const resizeHandle = document.getElementById('resizeHandle');
 const includePageContentBtn = document.getElementById('includePageContentBtn');
 const inputResizeHandle = document.getElementById('inputResizeHandle');
+const buttonGroup = document.getElementById('inputActions');
 
 // Initialize when the panel loads
 document.addEventListener('DOMContentLoaded', async () => {
   logger.info('Side panel loaded');
-  
-  // Debug the input resize handle element
-  logger.info('Input resize handle element:', inputResizeHandle);
   
   // Apply configured size for side panel
   await applyPanelSize();
@@ -65,6 +63,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   // Set up event listeners
   setupEventListeners();
+  
+  // 设置初始按钮状态
+  includePageContentBtn.setAttribute('data-enabled', includePageContent ? 'true' : 'false');
+  
+  // 初始化图标布局
+  updateIconsLayout(userInput.offsetHeight);
+  
+  // 添加默认布局类
+  buttonGroup.classList.add('layout-row');
 });
 
 // Helper function to check if URL is a restricted Chrome internal page
@@ -1453,12 +1460,68 @@ function doResize(e) {
     const maxHeight = 200;
     
     if (newHeight >= minHeight && newHeight <= maxHeight) {
-      userInput.style.height = `${newHeight}px`;
+      // 使用整数值避免小数像素导致的布局问题
+      const roundedHeight = Math.floor(newHeight);
+      userInput.style.height = `${roundedHeight}px`;
       // 实时更新输入框高度
       userInput.style.transition = 'none';
-      logger.info(`Resizing input to height: ${newHeight}px, deltaY: ${deltaY}`);
+      logger.info(`Resizing input to height: ${roundedHeight}px, deltaY: ${deltaY}`);
+      
+      // 添加防抖处理，避免频繁更新布局
+      if (!window.layoutUpdateTimer) {
+        // 根据输入框高度调整图标布局
+        updateIconsLayout(roundedHeight);
+        
+        // 防抖：50ms内不再重复更新布局
+        window.layoutUpdateTimer = setTimeout(() => {
+          window.layoutUpdateTimer = null;
+        }, 50);
+      }
     }
   }
+}
+
+// 根据输入框高度更新图标布局
+function updateIconsLayout(height) {
+  // 移除过渡效果以避免布局切换时的动画
+  buttonGroup.style.transition = 'none';
+  
+  // 清除所有布局类
+  buttonGroup.classList.remove('layout-row', 'layout-grid', 'layout-column');
+  
+  // 根据高度阈值设置不同布局
+  if (height <= 40) {
+    // 默认布局：单行
+    buttonGroup.classList.add('layout-row');
+    logger.info('Setting row layout');
+  } else if (height > 40 && height <= 80) {
+    // 网格布局：两行两列
+    buttonGroup.classList.add('layout-grid');
+    logger.info('Setting grid layout');
+  } else {
+    // 列布局：单列多行
+    buttonGroup.classList.add('layout-column');
+    logger.info('Setting column layout');
+  }
+  
+  // 确保发送按钮始终保持primary类
+  const sendBtn = document.getElementById('sendBtn');
+  if (sendBtn) {
+    if (!sendBtn.classList.contains('primary')) {
+      sendBtn.classList.add('primary');
+    }
+  }
+  
+  // 重置所有按钮样式
+  Array.from(buttonGroup.children).forEach(button => {
+    // 清除任何可能的内联样式
+    button.removeAttribute('style');
+  });
+  
+  // 使用setTimeout恢复过渡效果
+  setTimeout(() => {
+    buttonGroup.style.transition = '';
+  }, 50);
 }
 
 function stopResize() {
@@ -1483,6 +1546,15 @@ function stopResize() {
     
     // 恢复输入框的过渡效果
     userInput.style.transition = '';
+    
+    // 清除布局更新定时器
+    if (window.layoutUpdateTimer) {
+      clearTimeout(window.layoutUpdateTimer);
+      window.layoutUpdateTimer = null;
+    }
+    
+    // 最后更新一次布局，确保正确的布局状态
+    updateIconsLayout(userInput.offsetHeight);
     
     // No need to save input height as per requirements
     logger.info('Stopped input resize');
@@ -1576,12 +1648,8 @@ function updateExtractionButtonUI() {
 function toggleIncludePageContent() {
   includePageContent = !includePageContent;
   
-  // Update button appearance
-  if (includePageContent) {
-    includePageContentBtn.classList.add('enabled');
-  } else {
-    includePageContentBtn.classList.remove('enabled');
-  }
+  // Update button appearance using data-enabled attribute
+  includePageContentBtn.setAttribute('data-enabled', includePageContent ? 'true' : 'false');
   
   logger.info(`Page content inclusion ${includePageContent ? 'enabled' : 'disabled'}`);
 }

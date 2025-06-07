@@ -598,7 +598,7 @@ body {
 
 /* Input container */
 .input-container {
-  padding: 2px 1px 0px 7px;
+  padding: 2px 4px 4px 4px;
   border-top: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
@@ -606,10 +606,9 @@ body {
 
 .input-wrapper {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 6px;
   width: 100%;
-  flex-wrap: nowrap;
 }
 
 #userInput {
@@ -622,85 +621,209 @@ body {
   font-family: inherit;
   min-height: 30px;
   overflow-y: auto;
+  line-height: 1.4;
 }
 
 #userInput:focus {
   outline: 1px solid var(--primary-color);
 }
 
-.input-actions {
-  display: flex;
-  gap: 4px;
-  align-items: center;
-  height: 30px;
-}
-
-.send-btn {
-  background-color: var(--primary-color);
-  color: white;
-  border: none;
+/* 通用按钮样式 */
+.button-icon {
+  width: 28px;
+  height: 28px;
   border-radius: 4px;
-  min-width: 26px;
-  height: 26px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.2);
-}
-
-.send-btn:hover {
-  background-color: #3b78e7;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-}
-
-.send-btn:active {
-  transform: translateY(0);
-  box-shadow: 0 1px 2px rgba(0,0,0,0.2);
-}
-
-.send-btn .material-icons {
-  font-size: 14px;
-}
-
-.send-btn:disabled {
-  background-color: #ccc;
-  cursor: not-allowed;
-  box-shadow: none;
-}
-
-.export-btn,
-.clear-btn {
-  width: 26px;
-  height: 26px;
-  border: none;
+  border: 1px solid transparent;
   background-color: var(--light-gray);
-  cursor: pointer;
+  color: var(--text-color);
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 
-.export-btn .material-icons,
-.clear-btn .material-icons {
-  font-size: 14px;
-  color: var(--text-color);
-}
-
-.export-btn:hover,
-.clear-btn:hover {
+.button-icon:hover {
   background-color: var(--hover-color);
   transform: translateY(-1px);
   box-shadow: 0 1px 2px rgba(0,0,0,0.1);
 }
 
-.export-btn:active,
-.clear-btn:active {
+.button-icon:active {
   transform: translateY(0);
   box-shadow: none;
 }
+
+.button-icon .material-icons {
+  font-size: 16px;
+  color: var(--text-color);
+}
+
+/* 主要操作按钮 */
+.button-icon.primary {
+  background-color: var(--primary-color);
+  color: white;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+.button-icon.primary:hover {
+  background-color: #3b78e7;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.button-icon.primary .material-icons {
+  color: white;
+}
+
+/* 启用状态 */
+.button-icon[data-enabled="true"] {
+  background-color: transparent;
+  border: 1px solid var(--primary-color);
+}
+
+.button-icon[data-enabled="true"] .material-icons {
+  color: var(--primary-color);
+}
+
+.button-icon[data-enabled="true"]:hover {
+  background-color: rgba(66, 133, 244, 0.1);
+}
+
+/* 禁用状态 */
+.button-icon:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+/* 按钮组容器 */
+.button-group {
+  display: flex;
+  gap: 4px;
+  transition: all 0.3s ease;
+}
+
+/* 布局样式 - 行布局 */
+.button-group.layout-row {
+  flex-direction: row;
+  width: auto;
+  height: 28px;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+/* 布局样式 - 网格布局 */
+.button-group.layout-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 28px);
+  grid-template-rows: repeat(2, 28px);
+  width: 60px;
+  height: 60px;
+  gap: 4px;
+  align-items: center;
+  justify-items: center;
+}
+
+/* 确保发送按钮在网格布局中正确显示 */
+.button-group.layout-grid #sendBtn {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.button-group.layout-grid #includePageContentBtn {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.button-group.layout-grid #clearBtn {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.button-group.layout-grid #exportBtn {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+/* 布局样式 - 列布局 */
+.button-group.layout-column {
+  flex-direction: column;
+  width: 28px;
+  height: auto;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+/* 输入框变宽时的整体布局调整 */
+.input-wrapper {
+  align-items: flex-start;
+  gap: 6px;
+}
+
+@media (max-width: 300px) {
+  .button-group.layout-row {
+    flex-wrap: wrap;
+    height: auto;
+    width: 60px;
+  }
+}
+
+/* Input resize handle */
+.input-resize-handle {
+  position: relative;
+  width: 100%;
+  height: 4px;
+  cursor: ns-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: transparent;
+  transition: background-color 0.2s ease;
+  margin: 0 0 2px 0;
+  z-index: 10;
+  border-radius: 0;
+}
+
+.input-resize-handle:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.input-resize-handle::before {
+  content: '';
+  display: block;
+  width: 40px;
+  height: 2px;
+  background-color: var(--border-color);
+  border-radius: 1px;
+  transition: background-color 0.2s ease;
+}
+
+.input-resize-handle:hover::before {
+  background-color: var(--primary-color);
+  width: 40px;
+}
+
+/* 移除冗余样式 */
+
+/* Jina按钮特殊样式 */
+.jina-btn {
+  padding: 3px;
+}
+
+.jina-icon {
+  width: 16px;
+  height: 16px;
+}
+
+/* 输入区域调整 */
+.input-wrapper {
+  gap: 6px;
+}
+
+/* 不再需要的旧样式已删除 */
 
 /* Markdown styling */
 .message-content p {
@@ -913,10 +1036,7 @@ body {
   gap: 4px;
 }
 
-.input-actions {
-  gap: 4px;
-  height: 30px;
-}
+/* 移除冗余样式 */
 
 /* Jina按钮特殊样式 */
 .jina-btn {
@@ -931,6 +1051,89 @@ body {
 /* 输入区域调整 */
 .input-wrapper {
   gap: 6px;
+}
+
+/* 图标布局样式 - 不同行列组合 */
+/* 默认布局：单行 */
+.input-actions {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: 4px;
+  height: 30px;
+  width: auto;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+/* 两行两列布局 */
+.input-actions.layout-2x2 {
+  display: grid;
+  grid-template-columns: repeat(2, 26px);
+  grid-template-rows: repeat(2, 26px);
+  width: 56px;
+  height: 56px;
+  gap: 4px;
+  justify-content: center;
+}
+
+/* 四行一列布局 */
+.input-actions.layout-4x1 {
+  display: flex;
+  flex-direction: column;
+  width: 26px;
+  height: 114px;
+  gap: 4px;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+/* 统一按钮样式 */
+.input-actions .action-btn,
+.input-actions .clear-btn,
+.input-actions .export-btn {
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+  min-height: 26px;
+  max-width: 26px;
+  max-height: 26px;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border-radius: 4px;
+  background-color: var(--light-gray);
+  border: 1px solid transparent;
+}
+
+/* 图标大小统一 */
+.input-actions .action-btn .material-icons,
+.input-actions .clear-btn .material-icons,
+.input-actions .export-btn .material-icons {
+  font-size: 14px;
+  line-height: 1;
+}
+
+/* 保持enabled样式 */
+.input-actions .action-btn.enabled {
+  background-color: transparent;
+  border: 1px solid var(--primary-color);
+}
+
+.input-actions .action-btn.enabled .material-icons {
+  color: var(--primary-color);
+}
+
+/* 输入框容器调整 */
+.input-wrapper {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  width: 100%;
+  flex-wrap: nowrap;
 }
 
 /* Input resize handle - 调整到输入框上方 */

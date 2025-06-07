@@ -76,13 +76,19 @@
         <div id="inputResizeHandle" class="input-resize-handle"></div>
         <div class="input-wrapper">
           <textarea id="userInput" placeholder="Ask ..." rows="1"></textarea>
-          <button id="sendBtn" class="btn-base send-btn"><i class="material-icons">send</i></button>
-          <div class="input-actions">
-            <button id="includePageContentBtn" class="btn-base action-btn enabled" title="Include page content in sys prompt">
+          <div id="inputActions" class="button-group">
+            <button id="sendBtn" class="button-icon primary" title="Send message">
+              <i class="material-icons">send</i>
+            </button>
+            <button id="includePageContentBtn" class="button-icon" data-enabled="true" title="Include page content in prompt">
               <i class="material-icons">description</i>
             </button>
-            <button id="clearBtn" class="btn-base clear-btn" title="Clear Conversation"><i class="material-icons">delete_sweep</i></button>
-            <button id="exportBtn" class="btn-base export-btn" title="Export Conversation"><i class="material-icons">save_alt</i></button>
+            <button id="clearBtn" class="button-icon" title="Clear conversation">
+              <i class="material-icons">delete_sweep</i>
+            </button>
+            <button id="exportBtn" class="button-icon" title="Export conversation">
+              <i class="material-icons">save_alt</i>
+            </button>
           </div>
         </div>
       </div>
