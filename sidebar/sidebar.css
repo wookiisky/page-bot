@@ -396,7 +396,7 @@ body {
   flex-shrink: 0;
 }
 
-/* 快速输入按钮样式 */
+/* Quick input button styles */
 .quick-input-btn {
   background-color: var(--light-gray);
   border: 1px solid transparent;
@@ -628,7 +628,7 @@ body {
   outline: 1px solid var(--primary-color);
 }
 
-/* 通用按钮样式 */
+/* Common button styles */
 .button-icon {
   width: 28px;
   height: 28px;
@@ -661,7 +661,7 @@ body {
   color: var(--text-color);
 }
 
-/* 主要操作按钮 */
+/* Primary action buttons */
 .button-icon.primary {
   background-color: var(--primary-color);
   color: white;
@@ -677,7 +677,7 @@ body {
   color: white;
 }
 
-/* 启用状态 */
+/* Enabled state */
 .button-icon[data-enabled="true"] {
   background-color: transparent;
   border: 1px solid var(--primary-color);
@@ -691,7 +691,7 @@ body {
   background-color: rgba(66, 133, 244, 0.1);
 }
 
-/* 禁用状态 */
+/* Disabled state */
 .button-icon:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -699,14 +699,14 @@ body {
   transform: none;
 }
 
-/* 按钮组容器 */
+/* Button group container */
 .button-group {
   display: flex;
   gap: 4px;
   transition: all 0.3s ease;
 }
 
-/* 布局样式 - 行布局 */
+/* Layout styles - Row layout */
 .button-group.layout-row {
   flex-direction: row;
   width: auto;
@@ -715,7 +715,7 @@ body {
   justify-content: flex-start;
 }
 
-/* 布局样式 - 网格布局 */
+/* Layout styles - Grid layout */
 .button-group.layout-grid {
   display: grid;
   grid-template-columns: repeat(2, 28px);
@@ -727,7 +727,7 @@ body {
   justify-items: center;
 }
 
-/* 确保发送按钮在网格布局中正确显示 */
+/* Ensure send button displays correctly in grid layout */
 .button-group.layout-grid #sendBtn {
   grid-column: 1;
   grid-row: 1;
@@ -748,7 +748,7 @@ body {
   grid-row: 2;
 }
 
-/* 布局样式 - 列布局 */
+/* Layout styles - Column layout */
 .button-group.layout-column {
   flex-direction: column;
   width: 28px;
@@ -757,7 +757,7 @@ body {
   justify-content: flex-start;
 }
 
-/* 输入框变宽时的整体布局调整 */
+/* Overall layout adjustment when input box is wide */
 .input-wrapper {
   align-items: flex-start;
   gap: 6px;
@@ -806,9 +806,9 @@ body {
   width: 40px;
 }
 
-/* 移除冗余样式 */
+/* Remove redundant styles */
 
-/* Jina按钮特殊样式 */
+/* Special styles for Jina button */
 .jina-btn {
   padding: 3px;
 }
@@ -818,12 +818,10 @@ body {
   height: 16px;
 }
 
-/* 输入区域调整 */
+/* Input area adjustment */
 .input-wrapper {
   gap: 6px;
 }
-
-/* 不再需要的旧样式已删除 */
 
 /* Markdown styling */
 .message-content p {

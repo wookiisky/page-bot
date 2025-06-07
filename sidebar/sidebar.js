@@ -15,7 +15,7 @@ let currentExtractionMethod = 'readability'; // Track current extraction method
 let isResizing = false;
 let startY = 0;
 let startHeight = 0;
-let isInputResizing = false; // 输入框调整状态
+let isInputResizing = false; // Input box resize state
 let inputStartY = 0;
 let inputStartHeight = 0;
 
@@ -64,13 +64,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Set up event listeners
   setupEventListeners();
   
-  // 设置初始按钮状态
+  // Set initial button state
   includePageContentBtn.setAttribute('data-enabled', includePageContent ? 'true' : 'false');
   
-  // 初始化图标布局
+  // Initialize icon layout
   updateIconsLayout(userInput.offsetHeight);
   
-  // 添加默认布局类
+  // Add default layout class
   buttonGroup.classList.add('layout-row');
 });
 
@@ -486,7 +486,7 @@ async function sendUserMessage() {
   
   // Prepare payload for service worker
   let systemPromptTemplateForPayload = '';
-  let pageContentForPayload = extractedContent; // 始终将extractedContent传递下去
+  let pageContentForPayload = extractedContent; // Always pass extractedContent down
   const config = await getConfig();
 
   // Default system prompt from config (usually contains {CONTENT})
@@ -864,7 +864,7 @@ async function sendQuickMessage(displayText, sendTextTemplate) {
     // Get system prompt template and page content handling logic
     const config = await getConfig();
     let systemPromptTemplateForPayload = config.systemPrompt;
-    let pageContentForPayload = extractedContent; // 始终将extractedContent传递下去
+    let pageContentForPayload = extractedContent; // Always pass extractedContent down
 
     // Replace {CONTENT} placeholder in sendTextTemplate first
     // This ensures {CONTENT} in quick input's own template is handled correctly
@@ -1446,13 +1446,13 @@ function doResize(e) {
     }
   }
   
-  // Input box resize logic - 调整为从上方调整高度
+  // Input box resize logic - Adjust height from top
+  // When handle is above input box:
+  // - Dragging up (deltaY negative) = Increase input height (inverted behavior)
+  // - Dragging down (deltaY positive) = Decrease input height (inverted behavior)
+  // Invert deltaY to make dragging up increase height
   if (isInputResizing) {
-    // 当手柄在输入框上方时：
-    // - 向上拖动 (deltaY 为负) = 增加输入框高度（反转行为）
-    // - 向下拖动 (deltaY 为正) = 减小输入框高度（反转行为）
     const deltaY = e.clientY - inputStartY;
-    // 反转deltaY，使向上拖动增加高度
     const newHeight = Math.round(inputStartHeight - (deltaY * 1.2));
     
     // Set minimum and maximum heights for input
@@ -1460,19 +1460,19 @@ function doResize(e) {
     const maxHeight = 200;
     
     if (newHeight >= minHeight && newHeight <= maxHeight) {
-      // 使用整数值避免小数像素导致的布局问题
+      // Use integer value to avoid layout issues with fractional pixels
       const roundedHeight = Math.floor(newHeight);
       userInput.style.height = `${roundedHeight}px`;
-      // 实时更新输入框高度
+      // Real-time input height update
       userInput.style.transition = 'none';
       logger.info(`Resizing input to height: ${roundedHeight}px, deltaY: ${deltaY}`);
       
-      // 添加防抖处理，避免频繁更新布局
+      // Add debounce to avoid frequent layout updates
       if (!window.layoutUpdateTimer) {
-        // 根据输入框高度调整图标布局
+        // Update icon layout based on input height
         updateIconsLayout(roundedHeight);
         
-        // 防抖：50ms内不再重复更新布局
+        // Debounce: No updates within 50ms
         window.layoutUpdateTimer = setTimeout(() => {
           window.layoutUpdateTimer = null;
         }, 50);
@@ -1481,30 +1481,30 @@ function doResize(e) {
   }
 }
 
-// 根据输入框高度更新图标布局
+// Update icon layout based on input height
 function updateIconsLayout(height) {
-  // 移除过渡效果以避免布局切换时的动画
+  // Remove transition for immediate layout update
   buttonGroup.style.transition = 'none';
   
-  // 清除所有布局类
+  // Clear all layout classes
   buttonGroup.classList.remove('layout-row', 'layout-grid', 'layout-column');
   
-  // 根据高度阈值设置不同布局
+  // Set layout based on height threshold
   if (height <= 40) {
-    // 默认布局：单行
+    // Default layout: single row
     buttonGroup.classList.add('layout-row');
     logger.info('Setting row layout');
   } else if (height > 40 && height <= 80) {
-    // 网格布局：两行两列
+    // Grid layout: two rows, two columns
     buttonGroup.classList.add('layout-grid');
     logger.info('Setting grid layout');
   } else {
-    // 列布局：单列多行
+    // Column layout: single column multiple rows
     buttonGroup.classList.add('layout-column');
     logger.info('Setting column layout');
   }
   
-  // 确保发送按钮始终保持primary类
+  // Ensure send button always stays primary class
   const sendBtn = document.getElementById('sendBtn');
   if (sendBtn) {
     if (!sendBtn.classList.contains('primary')) {
@@ -1512,13 +1512,13 @@ function updateIconsLayout(height) {
     }
   }
   
-  // 重置所有按钮样式
+  // Reset all button styles
   Array.from(buttonGroup.children).forEach(button => {
-    // 清除任何可能的内联样式
+    // Clear any inline styles
     button.removeAttribute('style');
   });
   
-  // 使用setTimeout恢复过渡效果
+  // Use setTimeout to restore transition effect
   setTimeout(() => {
     buttonGroup.style.transition = '';
   }, 50);
@@ -1544,16 +1544,16 @@ function stopResize() {
     document.body.style.cursor = '';
     document.body.style.userSelect = '';
     
-    // 恢复输入框的过渡效果
+    // Restore input transition effect
     userInput.style.transition = '';
     
-    // 清除布局更新定时器
+    // Clear layout update timer
     if (window.layoutUpdateTimer) {
       clearTimeout(window.layoutUpdateTimer);
       window.layoutUpdateTimer = null;
     }
     
-    // 最后更新一次布局，确保正确的布局状态
+    // Final layout update to ensure correct layout state
     updateIconsLayout(userInput.offsetHeight);
     
     // No need to save input height as per requirements
