@@ -486,7 +486,22 @@ body {
   line-height: 1.3;
   overflow-wrap: break-word;
   flex: 1;
-  padding-right: 50px; /* 为按钮预留空间 - 按钮变小后进一步减少 */
+  padding-right: 30px; /* Default padding for column layout */
+  white-space: pre-wrap; /* Preserve line breaks and whitespace */
+  transition: padding-right 0.2s ease; /* Smooth transition when layout changes */
+}
+
+/* Adjust message content padding based on button layout */
+.chat-message.buttons-layout-row .message-content {
+  padding-right: 90px; /* More space for row layout with multiple buttons */
+}
+
+.chat-message.buttons-layout-2rows .message-content {
+  padding-right: 50px; /* Medium space for 2-row layout */
+}
+
+.chat-message.buttons-layout-column .message-content {
+  padding-right: 30px; /* Less space for column layout */
 }
 
 /* Message action buttons styles - Completely rewritten */
@@ -597,6 +612,28 @@ body {
   background-color: white;
   border: 1px solid var(--primary-color);
   border-radius: 4px;
+}
+
+/* Adjust edit mode content padding based on button layout */
+.chat-message.buttons-layout-row .message-content.edit-mode {
+  padding-right: 90px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 4px;
+}
+
+.chat-message.buttons-layout-2rows .message-content.edit-mode {
+  padding-right: 50px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 4px;
+}
+
+.chat-message.buttons-layout-column .message-content.edit-mode {
+  padding-right: 30px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 4px;
 }
 
 .message-content.edit-mode textarea {

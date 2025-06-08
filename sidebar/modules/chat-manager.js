@@ -58,12 +58,20 @@ const appendMessageToUI = (chatContainer, role, content, imageBase64 = null, isS
     logger.info(`[appendMessageToUI ${messageTimestamp}] Set data-streaming=true on messageDiv (ID: ${messageDiv.id}). Element:`, messageDiv);
   } else {
     logger.info(`[appendMessageToUI ${messageTimestamp}] Not a streaming assistant placeholder. Role: ${role}, Streaming: ${isStreaming}`);
-    try {
-      contentDiv.innerHTML = window.marked.parse(content);
-      logger.info(`[appendMessageToUI ${messageTimestamp}] Parsed Markdown for normal message.`);
-    } catch (error) {
-      logger.error(`[appendMessageToUI ${messageTimestamp}] Error parsing markdown for normal message:`, error);
-      contentDiv.textContent = content; // 回退到纯文本
+    
+    // For user messages, preserve line breaks by using textContent instead of markdown parsing
+    if (role === 'user') {
+      contentDiv.textContent = content;
+      logger.info(`[appendMessageToUI ${messageTimestamp}] Used textContent for user message to preserve line breaks.`);
+    } else {
+      // For assistant messages, use markdown parsing
+      try {
+        contentDiv.innerHTML = window.marked.parse(content);
+        logger.info(`[appendMessageToUI ${messageTimestamp}] Parsed Markdown for assistant message.`);
+      } catch (error) {
+        logger.error(`[appendMessageToUI ${messageTimestamp}] Error parsing markdown for assistant message:`, error);
+        contentDiv.textContent = content; // 回退到纯文本
+      }
     }
   }
   
@@ -84,10 +92,15 @@ const appendMessageToUI = (chatContainer, role, content, imageBase64 = null, isS
       // 修改DOM
       const contentDiv = messageDiv.querySelector('.message-content');
       contentDiv.setAttribute('data-raw-content', newContent);
-      try {
-        contentDiv.innerHTML = window.marked.parse(newContent);
-      } catch (error) {
+      // For user messages, preserve line breaks by using textContent
+      if (role === 'user') {
         contentDiv.textContent = newContent;
+      } else {
+        try {
+          contentDiv.innerHTML = window.marked.parse(newContent);
+        } catch (error) {
+          contentDiv.textContent = newContent;
+        }
       }
     });
     
@@ -138,7 +151,7 @@ const appendMessageToUI = (chatContainer, role, content, imageBase64 = null, isS
     const buttons = [editButton, copyButton, copyMarkdownButton, retryButton];
     
     // 动态布局按钮
-    layoutMessageButtons(buttonContainer, buttons);
+    layoutMessageButtons(buttonContainer, buttons, messageDiv);
     messageDiv.appendChild(buttonContainer);
   }
   // 助手消息的操作按钮（非流式传输）
@@ -163,7 +176,7 @@ const appendMessageToUI = (chatContainer, role, content, imageBase64 = null, isS
     const buttons = [copyTextButton, copyMarkdownButton];
     
     // 动态布局按钮
-    layoutMessageButtons(buttonContainer, buttons);
+    layoutMessageButtons(buttonContainer, buttons, messageDiv);
     messageDiv.appendChild(buttonContainer);
   }
   
@@ -292,7 +305,7 @@ const handleStreamEnd = (chatContainer, fullResponse, onComplete) => {
     const buttons = [copyTextButton, copyMarkdownButton];
     
     // 动态布局按钮
-    layoutMessageButtons(buttonContainer, buttons);
+    layoutMessageButtons(buttonContainer, buttons, streamingMessageContainer);
     
     // 确保按钮添加到正确位置
     streamingMessageContainer.appendChild(buttonContainer);
@@ -420,39 +433,100 @@ const exportConversation = (currentUrl, extractedContent, chatHistory) => {
 };
 
 /**
- * 动态布局消息按钮，根据按钮数量选择最佳布局
+ * 动态布局消息按钮，根据消息高度和按钮数量选择最佳布局
  * @param {HTMLElement} container - 按钮容器
  * @param {HTMLElement[]} buttons - 按钮数组
+ * @param {HTMLElement} messageElement - 消息元素，用于获取高度
  */
-const layoutMessageButtons = (container, buttons) => {
-  container.innerHTML = ''; // 清空容器
-  
+const layoutMessageButtons = (container, buttons, messageElement = null) => {
   const buttonCount = buttons.length;
   
-  if (buttonCount <= 2) {
-    // 1-2个按钮：单行布局
-    container.className = 'message-buttons layout-row';
-    buttons.forEach(button => container.appendChild(button));
-  } else if (buttonCount <= 4) {
-    // 3-4个按钮：两行布局
-    container.className = 'message-buttons layout-2rows';
+  function applyLayout() {
+    // 清空容器
+    container.innerHTML = '';
     
-    const buttonsPerRow = Math.ceil(buttonCount / 2);
-    for (let i = 0; i < buttonCount; i += buttonsPerRow) {
-      const row = document.createElement('div');
-      row.className = 'button-row';
-      
-      for (let j = i; j < Math.min(i + buttonsPerRow, buttonCount); j++) {
-        row.appendChild(buttons[j]);
-      }
-      
-      container.appendChild(row);
+    let messageHeight = 0;
+    let layoutType = '';
+    
+    if (messageElement) {
+      messageHeight = messageElement.offsetHeight;
     }
-  } else {
-    // 5个及以上按钮：单列布局
-    container.className = 'message-buttons layout-column';
-    buttons.forEach(button => container.appendChild(button));
+    
+    // 根据消息高度和按钮数量决定布局
+    if (messageElement && messageHeight > 80) {
+      // 消息高度足够时，优先使用单列布局
+      container.className = 'message-buttons layout-column';
+      layoutType = 'column';
+      buttons.forEach(button => container.appendChild(button));
+    } else if (buttonCount <= 2) {
+      // 1-2个按钮：单行布局
+      container.className = 'message-buttons layout-row';
+      layoutType = 'row';
+      buttons.forEach(button => container.appendChild(button));
+    } else if (buttonCount <= 4) {
+      // 3-4个按钮：两行布局
+      container.className = 'message-buttons layout-2rows';
+      layoutType = '2rows';
+      
+      const buttonsPerRow = Math.ceil(buttonCount / 2);
+      for (let i = 0; i < buttonCount; i += buttonsPerRow) {
+        const row = document.createElement('div');
+        row.className = 'button-row';
+        
+        for (let j = i; j < Math.min(i + buttonsPerRow, buttonCount); j++) {
+          row.appendChild(buttons[j]);
+        }
+        
+        container.appendChild(row);
+      }
+    } else {
+      // 5个及以上按钮：单列布局
+      container.className = 'message-buttons layout-column';
+      layoutType = 'column';
+      buttons.forEach(button => container.appendChild(button));
+    }
+    
+    // 为消息容器添加对应的布局类名，以便CSS调整消息内容宽度
+    if (messageElement && layoutType) {
+      // 移除之前的布局类名
+      messageElement.classList.remove('buttons-layout-row', 'buttons-layout-2rows', 'buttons-layout-column');
+      // 添加新的布局类名
+      messageElement.classList.add(`buttons-layout-${layoutType}`);
+      logger.debug(`Applied layout class: buttons-layout-${layoutType} to message ${messageElement.id}`);
+    }
   }
+  
+  // 先应用基于按钮数量的默认布局
+  applyLayout();
+  
+  // 如果传入了消息元素，在DOM渲染完成后重新检查高度并调整布局
+  if (messageElement) {
+    // 使用 requestAnimationFrame 确保DOM已经渲染完成
+    requestAnimationFrame(() => {
+      applyLayout();
+    });
+  }
+};
+
+/**
+ * 检查并修复现有消息的布局类名
+ * @param {HTMLElement} chatContainer - 聊天容器
+ */
+const fixExistingMessageLayouts = (chatContainer) => {
+  if (!chatContainer) return;
+  
+  const messages = chatContainer.querySelectorAll('.chat-message');
+  messages.forEach(messageElement => {
+    const buttonContainer = messageElement.querySelector('.message-buttons');
+    if (buttonContainer) {
+      const buttons = Array.from(buttonContainer.querySelectorAll('.message-action-btn'));
+      if (buttons.length > 0) {
+        // 重新应用布局
+        layoutMessageButtons(buttonContainer, buttons, messageElement);
+        logger.debug(`Fixed layout for message ${messageElement.id}`);
+      }
+    }
+  });
 };
 
 export {
@@ -464,5 +538,6 @@ export {
   copyMessageMarkdown,
   displayChatHistory,
   exportConversation,
-  layoutMessageButtons
+  layoutMessageButtons,
+  fixExistingMessageLayouts
 }; 

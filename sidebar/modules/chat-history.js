@@ -103,9 +103,18 @@ const editMessageInDOM = (messageId, newContent) => {
     // 保存原始内容用于导出
     contentEl.setAttribute('data-raw-content', newContent);
     
-    // 使用marked渲染markdown
-    contentEl.innerHTML = window.marked.parse(newContent);
-    logger.info(`Message ${messageId} content edited.`);
+    // 检查是否为用户消息
+    const isUserMessage = messageEl.classList.contains('user-message');
+    
+    if (isUserMessage) {
+      // 用户消息使用textContent保留换行符
+      contentEl.textContent = newContent;
+      logger.info(`User message ${messageId} content edited with preserved line breaks.`);
+    } else {
+      // 助手消息使用markdown渲染
+      contentEl.innerHTML = window.marked.parse(newContent);
+      logger.info(`Assistant message ${messageId} content edited with markdown parsing.`);
+    }
     return true;
   } catch (error) {
     logger.error(`Error updating message ${messageId} content:`, error);

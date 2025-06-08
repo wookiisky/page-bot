@@ -141,6 +141,11 @@ async function handlePageDataLoaded(data) {
   if (data && data.chatHistory) {
     logger.info(`Received chat history with ${data.chatHistory.length} messages from service worker`);
     ChatManager.displayChatHistory(elements.chatContainer, data.chatHistory);
+    
+    // 修复现有消息的布局类名
+    setTimeout(() => {
+      ChatManager.fixExistingMessageLayouts(elements.chatContainer);
+    }, 100);
   } else {
     logger.info('No chat history received from service worker');
     elements.chatContainer.innerHTML = '';
@@ -328,7 +333,8 @@ function setupMessageListeners() {
  */
 async function sendUserMessage() {
   const elements = UIManager.getAllElements();
-  const userText = elements.userInput.value.trim();
+  // Preserve line breaks in user input, only trim leading/trailing spaces and tabs
+  const userText = elements.userInput.value.replace(/^[ \t]+|[ \t]+$/g, '');
   const imageBase64 = ImageHandler.getCurrentImage();
   
   if (!userText && !imageBase64) {
