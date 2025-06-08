@@ -49,9 +49,34 @@ storage.saveChatHistory = async function(url, chatHistory) {
     // Get normalized URL as key for chat history (no method suffix)
     const key = getChatHistoryKeyFromUrl(url);
     
+    // 确保所有消息都有时间戳
+    const baseTime = Date.now() - chatHistory.length * 1000;
+    const historyWithTimestamps = chatHistory.map((msg, index) => {
+      if (!msg.timestamp) {
+        storageLogger.info(`Adding timestamp to message ${index} with role ${msg.role}`);
+        return {
+          ...msg,
+          timestamp: baseTime + index * 1000 // 每条消息间隔1秒
+        };
+      }
+      return msg;
+    });
+    
+    // Log detailed info for debugging
+    storageLogger.info('Saving chat history', { 
+      url, 
+      normalizedUrl: normalizeUrl(url),
+      key, 
+      messageCount: historyWithTimestamps?.length,
+      firstMessage: historyWithTimestamps?.length > 0 ? 
+        `${historyWithTimestamps[0].role}: ${historyWithTimestamps[0].content.substring(0, 50)}...` : 'none',
+      lastMessage: historyWithTimestamps?.length > 0 ? 
+        `${historyWithTimestamps[historyWithTimestamps.length-1].role}: ${historyWithTimestamps[historyWithTimestamps.length-1].content.substring(0, 50)}...` : 'none'
+    });
+    
     // Save the chat history
-    await chrome.storage.local.set({ [key]: chatHistory });
-    storageLogger.info('Chat history saved successfully', { url, messageCount: chatHistory?.length });
+    await chrome.storage.local.set({ [key]: historyWithTimestamps });
+    storageLogger.info('Chat history saved successfully', { url, messageCount: historyWithTimestamps?.length });
     
     return true;
   } catch (error) {
@@ -103,10 +128,31 @@ storage.getChatHistory = async function(url) {
     const result = await chrome.storage.local.get(key);
     
     const chatHistory = result[key] || [];
-    if (chatHistory.length > 0) {
+    
+    // 确保所有消息都有时间戳
+    const baseTime = Date.now() - chatHistory.length * 1000;
+    const historyWithTimestamps = chatHistory.map((msg, index) => {
+      if (!msg.timestamp) {
+        storageLogger.info(`Adding timestamp to loaded message ${index} with role ${msg.role}`);
+        return {
+          ...msg,
+          timestamp: baseTime + index * 1000 // 每条消息间隔1秒
+        };
+      }
+      return msg;
+    });
+    
+    if (historyWithTimestamps.length > 0) {
+      storageLogger.info(`Found cached chat history for URL: ${url}`, { 
+        messageCount: historyWithTimestamps.length,
+        firstMessageTimestamp: historyWithTimestamps[0].timestamp,
+        lastMessageTimestamp: historyWithTimestamps[historyWithTimestamps.length-1].timestamp
+      });
+    } else {
+      storageLogger.info(`No chat history found for URL: ${url}`);
     }
     
-    return chatHistory;
+    return historyWithTimestamps;
   } catch (error) {
     storageLogger.error('Error getting chat history:', { url, error: error.message });
     return [];

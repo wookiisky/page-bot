@@ -1,1668 +1,746 @@
-// Page Bot Popup JavaScript
-// Handles UI interaction and communication with the background script
+/**
+ * sidebar.js - Page Bot侧边栏主入口
+ * 整合所有模块，管理应用逻辑流程
+ */
 
-// Import logger module
-const logger = window.logger ? window.logger.createModuleLogger('Sidebar') : console;
+// 导入所有模块
+import { createLogger, isRestrictedPage, showCopyToast } from './modules/utils.js';
+import * as StateManager from './modules/state-manager.js';
+import * as UIManager from './modules/ui-manager.js';
+import * as MessageHandler from './modules/message-handler.js';
+import * as ContentExtractor from './modules/content-extractor.js';
+import * as ChatManager from './modules/chat-manager.js';
+import * as ResizeHandler from './modules/resize-handler.js';
+import * as ImageHandler from './modules/image-handler.js';
+import * as QuickInputs from './components/quick-inputs.js';
+import * as ChatMessage from './components/chat-message.js';
+import * as ChatHistory from './modules/chat-history.js';
 
-// Current page URL and extracted content
-let currentUrl = '';
-let extractedContent = '';
-let chatHistory = [];
-let imageBase64 = null;
-let currentExtractionMethod = 'readability'; // Track current extraction method
+// 创建logger
+const logger = createLogger('Sidebar');
 
-// Resize functionality variables
-let isResizing = false;
-let startY = 0;
-let startHeight = 0;
-let isInputResizing = false; // Input box resize state
-let inputStartY = 0;
-let inputStartHeight = 0;
+// 全局工具函数，供其他模块使用
+window.showCopyToast = showCopyToast;
+window.StateManager = StateManager;
+window.MessageHandler = MessageHandler;
 
-// Page content inclusion state
-let includePageContent = true;
-
-// DOM Elements
-const extractedContentElem = document.getElementById('extractedContent');
-const loadingIndicator = document.getElementById('loadingIndicator');
-const extractionError = document.getElementById('extractionError');
-const chatContainer = document.getElementById('chatContainer');
-const userInput = document.getElementById('userInput');
-const sendBtn = document.getElementById('sendBtn');
-const exportBtn = document.getElementById('exportBtn');
-const clearBtn = document.getElementById('clearBtn');
-const jinaExtractBtn = document.getElementById('jinaExtractBtn');
-const readabilityExtractBtn = document.getElementById('readabilityExtractBtn');
-const quickInputsContainer = document.getElementById('quickInputs');
-const imagePreviewContainer = document.getElementById('imagePreviewContainer');
-const imagePreview = document.getElementById('imagePreview');
-const removeImageBtn = document.getElementById('removeImageBtn');
-const copyContentBtn = document.getElementById('copyContentBtn');
-const retryExtractBtn = document.getElementById('retryExtractBtn');
-const contentSection = document.getElementById('contentSection');
-const resizeHandle = document.getElementById('resizeHandle');
-const includePageContentBtn = document.getElementById('includePageContentBtn');
-const inputResizeHandle = document.getElementById('inputResizeHandle');
-const buttonGroup = document.getElementById('inputActions');
-
-// Initialize when the panel loads
+// DOM元素加载完成后初始化
 document.addEventListener('DOMContentLoaded', async () => {
   logger.info('Side panel loaded');
   
-  // Apply configured size for side panel
-  await applyPanelSize();
+  // 初始化UI元素引用
+  const elements = UIManager.initElements();
   
-  // Reset content section height to config default each time panel opens
-  await resetContentSectionHeight();
+  // 应用配置的面板尺寸
+  const config = await StateManager.getConfig();
+  ResizeHandler.applyPanelSize(config);
   
-  // Initial loading of content
+  // 重置内容区域高度为配置默认值
+  await ResizeHandler.resetContentSectionHeight(elements.contentSection, config);
+  
+  // 加载当前页面数据
   await loadCurrentPageData();
   
-  // Load quick inputs from config
+  // 加载快速输入按钮
   loadQuickInputs();
   
-  // Set up event listeners
+  // 设置事件监听器
   setupEventListeners();
   
-  // Set initial button state
-  includePageContentBtn.setAttribute('data-enabled', includePageContent ? 'true' : 'false');
+  // 设置消息按钮跟随滚动的效果
+  setupMessageButtonsScroll();
   
-  // Initialize icon layout
-  updateIconsLayout(userInput.offsetHeight);
+  // 设置初始按钮状态
+  elements.includePageContentBtn.setAttribute('data-enabled', StateManager.getStateItem('includePageContent') ? 'true' : 'false');
   
-  // Add default layout class
-  buttonGroup.classList.add('layout-row');
+  // 初始化图标布局
+  UIManager.updateIconsLayout(elements.userInput.offsetHeight);
+  
+  // 添加默认布局类
+  elements.buttonGroup.classList.add('layout-row');
+  
+  logger.info('Sidebar initialization completed');
 });
 
-// Helper function to check if URL is a restricted Chrome internal page
-function isRestrictedPage(url) {
-  if (!url) return true;
-  
-  const restrictedPrefixes = [
-    'chrome://',
-    'chrome-extension://',
-    'edge://',
-    'about:',
-    'moz-extension://',
-    'chrome-search://',
-    'chrome-devtools://',
-    'devtools://'
-  ];
-  
-  return restrictedPrefixes.some(prefix => url.startsWith(prefix));
-}
-
-// Load data for current page
+/**
+ * 加载当前页面数据
+ */
 async function loadCurrentPageData() {
-  // Get current tab URL
+  // 获取当前标签页URL
   const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
   if (tabs.length > 0) {
-    currentUrl = tabs[0].url;
-    logger.info('Current URL:', currentUrl);
+    const url = tabs[0].url;
+    StateManager.updateStateItem('currentUrl', url);
+    logger.info('Current URL:', url);
     
-    // Check if this is a restricted page
-    if (isRestrictedPage(currentUrl)) {
-      hideLoading();
-      showRestrictedPageMessage();
+    // 检查是否为受限页面
+    if (isRestrictedPage(url)) {
+      UIManager.hideLoading();
+      UIManager.showRestrictedPageMessage();
       return;
     }
     
-    // Show loading state
-    showLoading('Loading page data...');
+    // 显示加载状态
+    UIManager.showLoading('Loading page data...');
     
-    // Load page data from background script
+    // 从后台脚本加载页面数据
     try {
-      // Add a small delay to allow service worker to initialize
-      await new Promise(resolve => setTimeout(resolve, 100)); 
-      logger.info('Attempting to send GET_PAGE_DATA to service worker');
-      const response = await chrome.runtime.sendMessage({
-        type: 'GET_PAGE_DATA',
-        url: currentUrl
-      });
-      logger.info('Received response for GET_PAGE_DATA:', response);
+      const response = await MessageHandler.getPageData(url);
       
-      if (response.type === 'PAGE_DATA_LOADED') {
-        // Data loaded successfully
+      if (response.success) {
+        // 数据加载成功
         await handlePageDataLoaded(response.data);
-      } else if (response.type === 'PAGE_DATA_ERROR') {
-        // Error loading data
-        showExtractionError(response.error);
+      } else {
+        // 加载数据出错
+        UIManager.showExtractionError(response.error);
       }
     } catch (error) {
-      logger.error('Error requesting page data:', error); // This log should appear in sidebar console
-      showExtractionError('Failed to communicate with the background script. Details: ' + (error.message || 'Unknown error'));
+      logger.error('Error requesting page data:', error);
+      UIManager.showExtractionError('Failed to communicate with the background script. Details: ' + (error.message || 'Unknown error'));
     }
   } else {
-    showExtractionError('No active tab found');
+    UIManager.showExtractionError('No active tab found');
   }
 }
 
-// Extract content for current URL using specified method
-async function extractContentForCurrentUrl() {
-  if (!currentUrl) {
-    showExtractionError('No URL available for extraction');
-    return;
+/**
+ * 处理页面数据加载完成
+ * @param {Object} data - 页面数据
+ */
+async function handlePageDataLoaded(data) {
+  const elements = UIManager.getAllElements();
+  UIManager.hideLoading();
+  
+  // 重新启用按钮，以防它们在受限页面上被禁用
+  elements.jinaExtractBtn.disabled = false;
+  elements.readabilityExtractBtn.disabled = false;
+  elements.userInput.disabled = false;
+  elements.sendBtn.disabled = false;
+  
+  // 更新提取的内容并显示
+  if (data && data.content) {
+    StateManager.updateStateItem('extractedContent', data.content);
+    await UIManager.displayExtractedContent(data.content);
+    elements.copyContentBtn.classList.add('visible');
+    elements.copyContentBtn.disabled = false;
+  } else {
+    StateManager.updateStateItem('extractedContent', '');
+    UIManager.showExtractionError('No content could be extracted.');
+    elements.copyContentBtn.classList.remove('visible');
+    elements.copyContentBtn.disabled = true;
   }
   
-  try {
-    const response = await chrome.runtime.sendMessage({
-      type: 'GET_PAGE_DATA',
-      url: currentUrl
-    });
-    
-    if (response.type === 'PAGE_DATA_LOADED') {
-      // Data loaded successfully
-      await handlePageDataLoaded(response.data);
-    } else if (response.type === 'PAGE_DATA_ERROR') {
-      // Error loading data
-      showExtractionError(response.error);
-    }
-  } catch (error) {
-    logger.error('Error extracting content for current URL:', error);
-    showExtractionError('Failed to extract content');
+  // 根据实际使用的方法更新提取方法UI
+  if (data && data.extractionMethod) {
+    StateManager.updateStateItem('currentExtractionMethod', data.extractionMethod);
+    UIManager.updateExtractionButtonUI(data.extractionMethod);
+    logger.info(`Content displayed using method: ${data.extractionMethod}`);
+  }
+
+  // 使用服务工作进程提供的聊天历史
+  if (data && data.chatHistory) {
+    logger.info(`Received chat history with ${data.chatHistory.length} messages from service worker`);
+    ChatManager.displayChatHistory(elements.chatContainer, data.chatHistory);
+  } else {
+    logger.info('No chat history received from service worker');
+    elements.chatContainer.innerHTML = '';
+  }
+  
+  // 根据成功与否启用或禁用重试按钮
+  elements.retryExtractBtn.disabled = !data.content;
+  if (data.content) {
+    elements.retryExtractBtn.classList.remove('disabled');
+    elements.retryExtractBtn.classList.add('visible');
+  } else {
+    elements.retryExtractBtn.classList.add('disabled');
+    // 保持可见以允许重试
   }
 }
 
-// Set up all event listeners
+/**
+ * 设置所有事件监听器
+ */
 function setupEventListeners() {
-  // Send message button
-  sendBtn.addEventListener('click', sendUserMessage);
+  const elements = UIManager.getAllElements();
   
-  // Enter key in input box sends message
-  userInput.addEventListener('keypress', (e) => {
+  // 发送消息按钮
+  elements.sendBtn.addEventListener('click', sendUserMessage);
+  
+  // 输入框中的Enter键发送消息
+  elements.userInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       sendUserMessage();
     }
   });
   
-  // Export conversation
-  exportBtn.addEventListener('click', exportConversation);
+  // 导出对话
+  elements.exportBtn.addEventListener('click', exportConversation);
   
-  // Clear conversation and context
-  clearBtn.addEventListener('click', clearConversationAndContext);
+  // 清除对话和上下文
+  elements.clearBtn.addEventListener('click', clearConversationAndContext);
   
-  // Extraction method buttons
-  jinaExtractBtn.addEventListener('click', () => switchExtractionMethod('jina'));
-  readabilityExtractBtn.addEventListener('click', () => switchExtractionMethod('readability'));
+  // 提取方法按钮
+  elements.jinaExtractBtn.addEventListener('click', () => switchExtractionMethod('jina'));
+  elements.readabilityExtractBtn.addEventListener('click', () => switchExtractionMethod('readability'));
   
-  // Include page content button
-  includePageContentBtn.addEventListener('click', toggleIncludePageContent);
+  // 包含页面内容按钮
+  elements.includePageContentBtn.addEventListener('click', toggleIncludePageContent);
   
-  // Image paste handling
-  userInput.addEventListener('paste', handleImagePaste);
+  // 初始化图片处理
+  ImageHandler.initImageHandler(
+    elements.userInput,
+    elements.imagePreviewContainer,
+    elements.imagePreview,
+    elements.removeImageBtn
+  );
   
-  // Remove attached image
-  removeImageBtn.addEventListener('click', removeAttachedImage);
+  // 复制提取的内容
+  elements.copyContentBtn.addEventListener('click', copyExtractedContent);
   
-  // Copy extracted content
-  copyContentBtn.addEventListener('click', copyExtractedContent);
-  
-  // Retry extraction
-  retryExtractBtn.addEventListener('click', () => {
-    // Check if button is disabled
-    if (retryExtractBtn.disabled || retryExtractBtn.classList.contains('disabled')) {
+  // 重试提取
+  elements.retryExtractBtn.addEventListener('click', () => {
+    // 检查按钮是否禁用
+    if (elements.retryExtractBtn.disabled || elements.retryExtractBtn.classList.contains('disabled')) {
       return;
     }
-    logger.info(`Retry button clicked, current extraction method: ${currentExtractionMethod}`);
-    reExtractContent(currentExtractionMethod);
+    logger.info(`Retry button clicked, current extraction method: ${StateManager.getStateItem('currentExtractionMethod')}`);
+    reExtractContent(StateManager.getStateItem('currentExtractionMethod'));
   });
   
-  // Resize handle events
-  resizeHandle.addEventListener('mousedown', startResize);
-  document.addEventListener('mousemove', doResize);
-  document.addEventListener('mouseup', stopResize);
+  // 初始化大小调整处理
+  ResizeHandler.initContentResize(
+    elements.contentSection,
+    elements.resizeHandle,
+    (height) => ResizeHandler.saveContentSectionHeight(height)
+  );
   
-  // Input resize handle events
-  inputResizeHandle.addEventListener('mousedown', startInputResize);
+  // 输入框大小调整处理
+  ResizeHandler.initInputResize(
+    elements.userInput,
+    elements.inputResizeHandle,
+    (height) => UIManager.updateIconsLayout(height)
+  );
   
-  // Listen for messages from background script (for streaming LLM responses and tab changes)
-  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.type === 'LLM_STREAM_CHUNK') {
-      logger.debug('Sidebar received LLM_STREAM_CHUNK:', message.chunk);
-      handleStreamChunk(message.chunk);
-    } else if (message.type === 'LLM_STREAM_END') {
-      logger.debug('Sidebar received LLM_STREAM_END');
-      handleStreamEnd(message.fullResponse);
-    } else if (message.type === 'LLM_ERROR') {
-      handleLlmError(message.error);
-    } else if (message.type === 'TAB_CHANGED') {
-      // Tab switched, reload data if URL different
-      if (message.url !== currentUrl) {
-        logger.info(`Tab changed. New URL: ${message.url}`);
-        currentUrl = message.url;
-        loadCurrentPageData(); // Load data for the new URL without reloading the panel
-      }
-    } else if (message.type === 'AUTO_LOAD_CONTENT') {
-      // Auto-load cached content for new URL
-      if (message.url !== currentUrl) {
-        logger.info(`Auto-loading cached content for URL: ${message.url}`);
-        currentUrl = message.url;
-        handlePageDataLoaded(message.data);
-      }
-    } else if (message.type === 'AUTO_EXTRACT_CONTENT') {
-      // Auto-extract content for new URL
-      if (message.url !== currentUrl) {
-        logger.info(`Auto-extracting content for URL: ${message.url}`);
-        currentUrl = message.url;
-        currentExtractionMethod = message.extractionMethod;
-        
-        // Check if this is a restricted page
-        if (isRestrictedPage(currentUrl)) {
-          hideLoading();
-          showRestrictedPageMessage();
-          return;
+  // 设置消息监听器
+  setupMessageListeners();
+}
+
+/**
+ * 设置消息监听器
+ */
+function setupMessageListeners() {
+  MessageHandler.setupMessageListeners({
+    onStreamChunk: (chunk) => {
+      logger.debug('Received LLM_STREAM_CHUNK:', chunk);
+      ChatManager.handleStreamChunk(UIManager.getElement('chatContainer'), chunk);
+    },
+    
+    onStreamEnd: (fullResponse) => {
+      logger.debug('Received LLM_STREAM_END');
+      ChatManager.handleStreamEnd(
+        UIManager.getElement('chatContainer'),
+        fullResponse,
+        (response) => {
+          // 从DOM获取更新后的对话历史
+          const chatHistory = ChatHistory.getChatHistoryFromDOM(UIManager.getElement('chatContainer'));
+          
+          // 保存更新后的聊天历史
+          chrome.runtime.sendMessage({
+            type: 'SAVE_CHAT_HISTORY',
+            url: StateManager.getStateItem('currentUrl'),
+            chatHistory: chatHistory
+          }).then(() => {
+            logger.info('Chat history saved after adding assistant response');
+          }).catch(error => {
+            logger.error('Failed to save chat history after adding assistant response:', error);
+          });
+          
+          // 重新启用发送按钮
+          UIManager.getElement('sendBtn').disabled = false;
         }
-        
-        // Show loading and extract content
-        showLoading('Extracting content...');
-        extractContentForCurrentUrl();
+      );
+    },
+    
+    onLlmError: (error) => {
+      ChatManager.handleLlmError(
+        UIManager.getElement('chatContainer'),
+        error,
+        null,
+        () => {
+          // 重新启用发送按钮
+          UIManager.getElement('sendBtn').disabled = false;
+        }
+      );
+    },
+    
+    onTabChanged: (url) => {
+      // 标签页切换，如果URL不同则重新加载数据
+      if (url !== StateManager.getStateItem('currentUrl')) {
+        logger.info(`Tab changed. New URL: ${url}`);
+        StateManager.updateStateItem('currentUrl', url);
+        loadCurrentPageData();
       }
-    } else if (message.type === 'TAB_UPDATED') {
-      // Legacy fallback for tab updates
-      if (message.url !== currentUrl) {
-        logger.info(`Tab updated. New URL: ${message.url}`);
-        currentUrl = message.url;
+    },
+    
+    onAutoLoadContent: (url, data) => {
+      // 自动加载新URL的缓存内容
+      if (url !== StateManager.getStateItem('currentUrl')) {
+        logger.info(`Auto-loading cached content for URL: ${url}`);
+        StateManager.updateStateItem('currentUrl', url);
+        handlePageDataLoaded(data);
+      }
+    },
+    
+    onAutoExtractContent: (url, extractionMethod) => {
+      // 自动提取新URL的内容
+      if (url !== StateManager.getStateItem('currentUrl')) {
+        logger.info(`Auto-extracting content for URL: ${url}`);
+        StateManager.updateStateItem('currentUrl', url);
+        StateManager.updateStateItem('currentExtractionMethod', extractionMethod);
+        
+        // 检查是否为受限页面
+        if (isRestrictedPage(url)) {
+          UIManager.hideLoading();
+          UIManager.showRestrictedPageMessage();
+    return;
+  }
+  
+        // 显示加载并提取内容
+        UIManager.showLoading('Extracting content...');
+        loadCurrentPageData();
+      }
+    },
+    
+    onTabUpdated: (url) => {
+      // 标签页更新的旧式回退
+      if (url !== StateManager.getStateItem('currentUrl')) {
+        logger.info(`Tab updated. New URL: ${url}`);
+        StateManager.updateStateItem('currentUrl', url);
         loadCurrentPageData();
       }
     }
   });
 }
 
-// Handle page data loaded from background script
-async function handlePageDataLoaded(data) {
-  hideLoading();
-  
-  // Re-enable buttons in case they were disabled on a restricted page
-  jinaExtractBtn.disabled = false;
-  readabilityExtractBtn.disabled = false;
-  userInput.disabled = false;
-  sendBtn.disabled = false;
-  
-  // Update extracted content and display
-  if (data && data.content) {
-    extractedContent = data.content; // Store extracted content
-    await displayExtractedContent(extractedContent); // Display content in UI
-    copyContentBtn.classList.add('visible'); // Show copy button
-    copyContentBtn.disabled = false;
-  } else {
-    extractedContent = ''; // Clear extracted content if none found
-    showExtractionError('No content could be extracted.');
-    copyContentBtn.classList.remove('visible');
-    copyContentBtn.disabled = true;
-  }
-  
-  // Update extraction method UI based on what was actually used
-  if (data && data.extractionMethod) {
-    currentExtractionMethod = data.extractionMethod;
-    if (typeof updateExtractionButtonUI === 'function') {
-      updateExtractionButtonUI();
-    } else {
-      logger.error('updateExtractionButtonUI function is not defined when trying to call it.');
-    }
-    logger.info(`Content displayed using method: ${currentExtractionMethod}`);
-  }
-
-  // Use chat history directly from the data provided by the service worker
-  if (data && data.chatHistory) {
-    chatHistory = data.chatHistory;
-  } else {
-    chatHistory = []; // Default to empty array if not provided
-  }
-  displayChatHistory(chatHistory);
-  
-  // Enable or disable retry button based on success
-  retryExtractBtn.disabled = !extractedContent;
-  if (extractedContent) {
-    retryExtractBtn.classList.remove('disabled');
-    retryExtractBtn.classList.add('visible');
-  } else {
-    retryExtractBtn.classList.add('disabled');
-    // Keep visible to allow retry
-  }
-}
-
-// Display the extracted content in the UI
-async function displayExtractedContent(content) {
-  if (!content) {
-    showExtractionError('No content extracted');
-    return;
-  }
-  
-  // Display raw markdown content instead of rendering it
-  extractedContentElem.innerHTML = `<pre style="white-space: pre-wrap; word-break: break-word;">${escapeHtml(content)}</pre>`;
-  
-  // Show action buttons when content is available and enable them (orange state)
-  copyContentBtn.classList.add('visible');
-  retryExtractBtn.classList.add('visible');
-  copyContentBtn.classList.remove('disabled');
-  retryExtractBtn.classList.remove('disabled');
-  copyContentBtn.classList.add('enabled');
-  retryExtractBtn.classList.add('enabled');
-  copyContentBtn.disabled = false;
-  retryExtractBtn.disabled = false;
-  
-  // Content height is now managed by the resize functionality
-}
-
-// Helper function to escape HTML special characters
-function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
-
-// Display chat history in the UI
-function displayChatHistory(history) {
-  chatContainer.innerHTML = '';
-  
-  if (!history || history.length === 0) {
-    return;
-  }
-  
-  history.forEach(message => {
-    appendMessageToUI(message.role, message.content);
-  });
-  
-  // Scroll to bottom
-  chatContainer.scrollTop = chatContainer.scrollHeight;
-}
-
-// Append a new message to the chat UI
-function appendMessageToUI(role, content, imageBase64, isStreaming = false) {
-  const messageTimestamp = Date.now(); // For unique ID if needed
-  logger.info(`[appendMessageToUI ${messageTimestamp}] Role: ${role}, Streaming: ${isStreaming}, Content: ${content ? content.substring(0, 50) + '...' : 'empty'}`);
-  
-  const messageDiv = document.createElement('div');
-  messageDiv.className = `chat-message ${role === 'user' ? 'user-message' : 'assistant-message'}`;
-  messageDiv.id = `message-${messageTimestamp}`;
-  
-  const roleDiv = document.createElement('div');
-  roleDiv.className = 'message-role';
-  roleDiv.textContent = ''; // Role text is not currently used, can be added if needed
-  
-  const contentDiv = document.createElement('div');
-  contentDiv.className = 'message-content';
-  
-  if (role === 'assistant' && isStreaming) {
-    logger.info(`[appendMessageToUI ${messageTimestamp}] Condition for streaming assistant placeholder met.`);
-    try {
-      // The content passed for streaming placeholder is already HTML with spinner
-      contentDiv.innerHTML = content; 
-      logger.info(`[appendMessageToUI ${messageTimestamp}] Applied raw HTML content for streaming placeholder.`);
-    } catch (error) {
-      logger.error(`[appendMessageToUI ${messageTimestamp}] Error setting innerHTML for streaming placeholder:`, error);
-      contentDiv.textContent = content; // Fallback
-    }
-    messageDiv.dataset.streaming = 'true';
-    logger.info(`[appendMessageToUI ${messageTimestamp}] Set data-streaming=true on messageDiv (ID: ${messageDiv.id}). Element:`, messageDiv);
-  } else {
-    logger.info(`[appendMessageToUI ${messageTimestamp}] Not a streaming assistant placeholder. Role: ${role}, Streaming: ${isStreaming}`);
-    try {
-      contentDiv.innerHTML = window.marked.parse(content);
-      logger.info(`[appendMessageToUI ${messageTimestamp}] Parsed Markdown for normal message.`);
-    } catch (error) {
-      logger.error(`[appendMessageToUI ${messageTimestamp}] Error parsing markdown for normal message:`, error);
-      contentDiv.textContent = content; // Fallback to plain text
-    }
-  }
-  
-  messageDiv.appendChild(roleDiv);
-  messageDiv.appendChild(contentDiv);
-  
-  // Add action buttons for completed messages (not for streaming placeholders initially)
-  // Now applies to both 'user' and 'assistant' roles
-  if ((role === 'user' || role === 'assistant') && !isStreaming && content) {
-    const buttonContainer = document.createElement('div');
-    buttonContainer.className = 'message-buttons';
-    
-    // For user messages, add edit and retry buttons
-    if (role === 'user') {
-      const editButton = document.createElement('button');
-      editButton.className = 'btn-base message-action-btn';
-      editButton.innerHTML = '<i class="material-icons">edit</i>';
-      editButton.title = 'Edit Message';
-      editButton.dataset.messageId = messageDiv.id;
-      editButton.onclick = () => editMessage(messageDiv);
-      
-      const retryButton = document.createElement('button');
-      retryButton.className = 'btn-base message-action-btn';
-      retryButton.innerHTML = '<i class="material-icons">refresh</i>';
-      retryButton.title = 'Retry Message';
-      retryButton.dataset.messageId = messageDiv.id;
-      retryButton.onclick = () => retryMessage(messageDiv);
-      
-      buttonContainer.appendChild(editButton);
-      buttonContainer.appendChild(retryButton);
-    }
-    
-    const copyTextButton = document.createElement('button');
-    copyTextButton.className = 'btn-base message-action-btn';
-    copyTextButton.innerHTML = '<i class="material-icons">content_copy</i>';
-    copyTextButton.title = 'Copy Text';
-    copyTextButton.dataset.content = content;
-    copyTextButton.onclick = () => copyMessageText(content);
-    
-    const copyMarkdownButton = document.createElement('button');
-    copyMarkdownButton.className = 'btn-base message-action-btn';
-    copyMarkdownButton.innerHTML = '<i class="material-icons">code</i>';
-    copyMarkdownButton.title = 'Copy Markdown';
-    copyMarkdownButton.dataset.content = content; // For user messages, this will be plain text
-    copyMarkdownButton.onclick = () => copyMessageMarkdown(content); // For user, effectively same as copyText
-    
-    buttonContainer.appendChild(copyTextButton);
-    buttonContainer.appendChild(copyMarkdownButton);
-    messageDiv.appendChild(buttonContainer);
-    logger.info(`[appendMessageToUI ${messageTimestamp}] Added action buttons for ${role} message.`);
-  }
-  
-  chatContainer.appendChild(messageDiv);
-  logger.info(`[appendMessageToUI ${messageTimestamp}] Message div (ID: ${messageDiv.id}) appended to chatContainer. Child count: ${chatContainer.childElementCount}`);
-  
-  // Scroll to bottom
-  chatContainer.scrollTop = chatContainer.scrollHeight;
-  
-  return messageDiv; // Return the element itself
-}
-
-// Send user message to LLM
+/**
+ * 发送用户消息
+ */
 async function sendUserMessage() {
-  const userText = userInput.value.trim();
+  const elements = UIManager.getAllElements();
+  const userText = elements.userInput.value.trim();
+  const imageBase64 = ImageHandler.getCurrentImage();
+  
   if (!userText && !imageBase64) {
     logger.warn('Attempted to send an empty message');
     return;
   }
 
-  // Clear input and disable send button
-  userInput.value = '';
-  sendBtn.disabled = true;
+  // 清除输入并禁用发送按钮
+  elements.userInput.value = '';
+  elements.sendBtn.disabled = true;
   
-  // Optimistically add user message to UI
-  appendMessageToUI('user', userText, imageBase64);
+  // 创建消息时间戳，用于DOM和消息对象
+  const messageTimestamp = Date.now();
   
-  // Add user message to local chatHistory array for optimistic UI update
-  // The service worker will handle the actual saving of the complete history (user + assistant)
-  chatHistory.push({ role: 'user', content: userText });
+  // 乐观地将用户消息添加到UI，使用相同的时间戳
+  ChatManager.appendMessageToUI(elements.chatContainer, 'user', userText, imageBase64, false, messageTimestamp);
   
-  // Prepare payload for service worker
+  // 从DOM获取对话历史
+  const chatHistory = ChatHistory.getChatHistoryFromDOM(elements.chatContainer);
+  
+  // 将当前对话历史立即保存到存储
+  try {
+    await chrome.runtime.sendMessage({
+      type: 'SAVE_CHAT_HISTORY',
+      url: StateManager.getStateItem('currentUrl'),
+      chatHistory: chatHistory
+    });
+    logger.info('Chat history saved after adding user message');
+  } catch (error) {
+    logger.error('Failed to save chat history after adding user message:', error);
+  }
+  
+  // 为服务工作进程准备有效载荷
   let systemPromptTemplateForPayload = '';
-  let pageContentForPayload = extractedContent; // Always pass extractedContent down
-  const config = await getConfig();
+  let pageContentForPayload = StateManager.getStateItem('extractedContent'); // 始终传递extractedContent
+  const config = await StateManager.getConfig();
 
-  // Default system prompt from config (usually contains {CONTENT})
+  // 来自配置的默认系统提示(通常包含{CONTENT})
   systemPromptTemplateForPayload = config.systemPrompt;
 
-  if (includePageContent) {
+  if (StateManager.getStateItem('includePageContent')) {
     logger.info('Including page content in the message. Extracted content will be sent.');
-    systemPromptTemplateForPayload = systemPromptTemplateForPayload + '\n\nPage Content:\n' + extractedContent; 
+    systemPromptTemplateForPayload = systemPromptTemplateForPayload + '\n\nPage Content:\n' + pageContentForPayload; 
   } else {
     logger.info('Not including page content in the message. Only using for {CONTENT} replacement.');
   }
-  logger.info(['sys', includePageContent, systemPromptTemplateForPayload]);
-    
   
-
-  // Show loading indicator in chat
-  // Make sure this is called *before* sending the message to ensure UI updates promptly
-  const loadingMsgId = appendMessageToUI('assistant', '<div class="spinner"></div>', null, true);
+  // 在聊天中显示加载指示器
+  // 确保在发送消息之前调用此方法，以确保UI及时更新
+  const loadingMsgId = ChatManager.appendMessageToUI(elements.chatContainer, 'assistant', '<div class="spinner"></div>', null, true);
   
-  // Remove image after sending if one was attached
+  // 如果附加了图片，发送后移除
   if (imageBase64) {
-    removeAttachedImage();
+    ImageHandler.removeAttachedImage(elements.imagePreviewContainer, elements.imagePreview);
   }
 
   try {
-    // Send message to background script for LLM processing
-    await chrome.runtime.sendMessage({
-      type: 'SEND_LLM_MESSAGE', // Corrected type
-      payload: { // Corrected structure
-        messages: chatHistory, // Full history including current user message
-        systemPromptTemplate: systemPromptTemplateForPayload,
-        extractedPageContent: pageContentForPayload,
-        imageBase64: imageBase64, // This remains null if no image was attached
-        currentUrl: currentUrl,
-        extractionMethod: currentExtractionMethod
-      }
+    // 向后台脚本发送消息以进行LLM处理
+    await MessageHandler.sendLlmMessage({
+      messages: chatHistory,
+      systemPromptTemplate: systemPromptTemplateForPayload,
+      extractedPageContent: pageContentForPayload,
+      imageBase64: imageBase64,
+      currentUrl: StateManager.getStateItem('currentUrl'),
+      extractionMethod: StateManager.getStateItem('currentExtractionMethod')
     });
   } catch (error) {
     logger.error('Error sending message to LLM via service worker:', error);
-    handleLlmError('Failed to send message to the AI. Check service worker logs.');
-    // It's important to also update the UI if the sendMessage itself fails.
-    // The handleLlmError function should ideally remove the loading indicator.
-    if (loadingMsgId && typeof loadingMsgId === 'string') { // if appendMessageToUI returned an ID
-        const loadingMessageElement = document.getElementById(loadingMsgId);
-        if (loadingMessageElement) {
-            const contentDiv = loadingMessageElement.querySelector('.message-content');
-            if (contentDiv) contentDiv.innerHTML = `<span style="color: var(--error-color);">Error: Failed to send message.</span>`;
-            loadingMessageElement.removeAttribute('data-streaming');
-        }
-    } else if (loadingMsgId && loadingMsgId.classList) { // if it returned the element itself
-        const contentDiv = loadingMsgId.querySelector('.message-content');
-        if (contentDiv) contentDiv.innerHTML = `<span style="color: var(--error-color);">Error: Failed to send message.</span>`;
-        loadingMsgId.removeAttribute('data-streaming');
-    }
-    
-    // Re-enable send button if there was an error
-    sendBtn.disabled = false;
+    ChatManager.handleLlmError(
+      elements.chatContainer,
+      'Failed to send message to the AI. Check service worker logs.',
+      loadingMsgId,
+      () => {
+        // 如果发生错误，重新启用发送按钮
+        elements.sendBtn.disabled = false;
+      }
+    );
   }
 }
 
-// Handle streaming chunk from LLM
-function handleStreamChunk(chunk) {
-  // Find the message that's currently streaming
-  const streamingMessageContainer = chatContainer.querySelector('[data-streaming="true"]');
+/**
+ * 处理快速输入点击
+ * @param {string} displayText - 显示文本
+ * @param {string} sendTextTemplate - 发送文本模板
+ */
+async function handleQuickInputClick(displayText, sendTextTemplate) {
+  const elements = UIManager.getAllElements();
   
-  if (streamingMessageContainer) {
-    const streamingMessageContentDiv = streamingMessageContainer.querySelector('.message-content');
-    if (!streamingMessageContentDiv) return;
-
-    // Remove spinner if it exists (should only be there on the first chunk)
-    const spinner = streamingMessageContentDiv.querySelector('.spinner');
-    if (spinner) {
-      spinner.remove();
-    }
-    
-    // Append the new chunk to the buffer and re-render markdown
-    let currentBuffer = streamingMessageContainer.dataset.markdownBuffer || '';
-    currentBuffer += chunk;
-    streamingMessageContainer.dataset.markdownBuffer = currentBuffer;
-    
-    try {
-      streamingMessageContentDiv.innerHTML = window.marked.parse(currentBuffer);
-    } catch (error) {
-        logger.error('Error parsing markdown during stream:', error);
-        // Fallback: append as text, but this might mix with previous HTML
-        const textNode = document.createTextNode(chunk);
-        streamingMessageContentDiv.appendChild(textNode);
-    }
-    
-    // Scroll to bottom
-    chatContainer.scrollTop = chatContainer.scrollHeight;
-  }
-}
-
-// Handle the end of a stream
-function handleStreamEnd(fullResponse) {
-  logger.info('[handleStreamEnd] Received fullResponse:', fullResponse ? fullResponse.substring(0, 100) + '...' : 'empty_or_null');
-  // Find the message that was streaming
-  const streamingMessageContainer = chatContainer.querySelector('[data-streaming="true"]');
+  // 显示加载状态
+  elements.sendBtn.disabled = true;
   
-  if (streamingMessageContainer) {
-    logger.info('[handleStreamEnd] Found streamingMessageContainer:', streamingMessageContainer);
-    // Update the content with the full response
-    const contentDiv = streamingMessageContainer.querySelector('.message-content');
-    if (!contentDiv) {
-      logger.error('[handleStreamEnd] streamingMessageContainer found, but .message-content child is missing!');
-      // Attempt to clear the streaming attribute anyway to prevent multiple stuck loaders
-      streamingMessageContainer.removeAttribute('data-streaming');
-      return;
-    }
-    logger.info('[handleStreamEnd] Found contentDiv:', contentDiv);
-    
-    try {
-      logger.info('[handleStreamEnd] Attempting to parse Markdown...');
-      contentDiv.innerHTML = window.marked.parse(fullResponse);
-      logger.info('[handleStreamEnd] Markdown parsed and applied to contentDiv.');
-    } catch (markdownError) {
-      logger.error('[handleStreamEnd] Error parsing Markdown:', markdownError);
-      contentDiv.textContent = fullResponse; // Fallback to plain text
-      logger.info('[handleStreamEnd] Applied fullResponse as plain text due to Markdown error.');
-    }
-        
-    // Remove the streaming flag
-    streamingMessageContainer.removeAttribute('data-streaming');
-    logger.info('[handleStreamEnd] Removed data-streaming attribute.');
-    
-    // Add action buttons for assistant messages
-    const buttonContainer = document.createElement('div');
-    buttonContainer.className = 'message-buttons';
-    
-    // Copy text button
-    const copyTextButton = document.createElement('button');
-    copyTextButton.className = 'btn-base message-action-btn';
-    copyTextButton.innerHTML = '<i class="material-icons">content_copy</i>';
-    copyTextButton.title = 'Copy Text';
-    copyTextButton.onclick = () => copyMessageText(fullResponse);
-    
-    // Copy markdown button
-    const copyMarkdownButton = document.createElement('button');
-    copyMarkdownButton.className = 'btn-base message-action-btn';
-    copyMarkdownButton.innerHTML = '<i class="material-icons">code</i>';
-    copyMarkdownButton.title = 'Copy Markdown';
-    copyMarkdownButton.onclick = () => copyMessageMarkdown(fullResponse);
-    
-    buttonContainer.appendChild(copyTextButton);
-    buttonContainer.appendChild(copyMarkdownButton);
-    
-    // Ensure buttons are added to the correct position
-    streamingMessageContainer.appendChild(buttonContainer);
-    logger.info('[handleStreamEnd] Action buttons added.');
-    
-    // Add to chat history (assistant response)
-    // The service worker handles saving to storage, but we need to update our local copy
-    chatHistory.push({ role: 'assistant', content: fullResponse });
-    logger.info('[handleStreamEnd] Updated local chatHistory with assistant response.');
-    
-    // Scroll to bottom
-    chatContainer.scrollTop = chatContainer.scrollHeight;
-    logger.info('[handleStreamEnd] Scrolled to bottom.');
-    
-    // Re-enable send button after response is complete
-    sendBtn.disabled = false;
-    logger.info('[handleStreamEnd] Re-enabled send button.');
-  } else {
-    logger.warn('[handleStreamEnd] streamingMessageContainer not found! UI might be stuck or already updated.');
-    // Re-enable send button even if streaming message container not found
-    sendBtn.disabled = false;
-    logger.info('[handleStreamEnd] Re-enabled send button (fallback path).');
-  }
-}
-
-// Handle LLM API error
-function handleLlmError(error, streamingMessageElement = null) {
-  logger.error('LLM Error:', error);
+  // 创建消息时间戳，用于DOM和消息对象
+  const messageTimestamp = Date.now();
   
-  // Try to find a streaming message if one isn't passed
-  const messageElement = streamingMessageElement || chatContainer.querySelector('[data-streaming="true"]');
+  // 添加用户消息到UI，使用相同的时间戳
+  ChatManager.appendMessageToUI(elements.chatContainer, 'user', displayText, null, false, messageTimestamp);
   
-  if (messageElement) {
-    const contentDiv = messageElement.querySelector('.message-content');
-    if (contentDiv) {
-      contentDiv.innerHTML = `<span style="color: var(--error-color);">${typeof error === 'string' ? error : 'An unexpected error occurred with the AI.'}</span>`;
-    }
-    messageElement.removeAttribute('data-streaming'); // Ensure streaming flag is removed
-  } else {
-    // If no streaming message (e.g., error happened before one was created or already handled),
-    // append a new error message.
-    appendMessageToUI('assistant', `<span style="color: var(--error-color);">${typeof error === 'string' ? error : 'An unexpected error occurred with the AI.'}</span>`);
-  }
+  // 显示助手响应的加载指示器
+  const assistantLoadingMessage = ChatManager.appendMessageToUI(
+    elements.chatContainer,
+    'assistant',
+    '<div class="spinner"></div>',
+    null,
+    true
+  );
   
-  // Re-enable send button if it was disabled
-  sendBtn.disabled = false;
-  logger.info('Re-enabled send button after LLM error.');
-}
-
-// Switch extraction method (check cache first, extract if needed)
-async function switchExtractionMethod(method) {
-  logger.info(`=== SWITCH EXTRACTION METHOD START ===`);
-  logger.info(`Switching to method: ${method}`);
-  logger.info(`Current URL: ${currentUrl}`);
-  logger.info(`Current extraction method before: ${currentExtractionMethod}`);
+  // 从DOM获取对话历史
+  const chatHistory = ChatHistory.getChatHistoryFromDOM(elements.chatContainer);
   
-  // Check if this is a restricted page
-  if (isRestrictedPage(currentUrl)) {
-    logger.info('Cannot switch extraction method on restricted page');
-    return;
-  }
-  
-  // If already using this method, do nothing
-  if (currentExtractionMethod === method) {
-    logger.info(`Already using method: ${method}, no action needed`);
-    return;
-  }
-  
-  showLoading(`Switching to ${method === 'jina' ? 'Jina AI' : 'Readability'} extraction...`);
-  
-  // Update active button styling
-  jinaExtractBtn.classList.toggle('active', method === 'jina');
-  readabilityExtractBtn.classList.toggle('active', method === 'readability');
-  logger.info(`Button styling updated - Jina active: ${method === 'jina'}, Readability active: ${method === 'readability'}`);
-  
+  // 将当前对话历史立即保存到存储
   try {
-    logger.info(`Sending SWITCH_EXTRACTION_METHOD message to background script...`);
-    const response = await chrome.runtime.sendMessage({
-      type: 'SWITCH_EXTRACTION_METHOD',
-      url: currentUrl,
-      method: method
+    await chrome.runtime.sendMessage({
+      type: 'SAVE_CHAT_HISTORY',
+      url: StateManager.getStateItem('currentUrl'),
+      chatHistory: chatHistory
     });
-    
-    logger.info(`Received response from background script:`, response);
-    
-    if (response.type === 'CONTENT_UPDATED') {
-      // Content updated successfully
-      logger.info(`Content updated successfully with method: ${response.extractionMethod || method}`);
-      extractedContent = response.content;
-      currentExtractionMethod = response.extractionMethod || method; // Update current extraction method
-      logger.info(`Current extraction method after: ${currentExtractionMethod}`);
-      await displayExtractedContent(extractedContent);
-      hideLoading();
-      logger.info(`=== SWITCH EXTRACTION METHOD SUCCESS ===`);
-    } else if (response.type === 'CONTENT_UPDATE_ERROR') {
-      // Error updating content
-      logger.info(`Content update error: ${response.error}`);
-      showExtractionError(response.error);
-      logger.info(`=== SWITCH EXTRACTION METHOD ERROR ===`);
-    } else {
-      logger.info(`Unexpected response type: ${response.type}`);
-      showExtractionError('Unexpected response from background script');
-      logger.info(`=== SWITCH EXTRACTION METHOD UNEXPECTED ===`);
-    }
+    logger.info('Chat history saved after adding quick input message');
   } catch (error) {
-    logger.error('Error switching extraction method:', error);
-    showExtractionError('Failed to communicate with the background script');
-    logger.info(`=== SWITCH EXTRACTION METHOD EXCEPTION ===`);
+    logger.error('Failed to save chat history after adding quick input message:', error);
   }
-}
+  
+  // 准备数据
+  const state = StateManager.getState();
+  let systemPromptTemplateForPayload = '';
+  let pageContentForPayload = state.extractedContent;
+  const config = await StateManager.getConfig();
 
-// Re-extract content using current method (force re-extraction)
-async function reExtractContent(method) {
-  logger.info(`=== RE-EXTRACT START ===`);
-  logger.info(`Re-extracting with method: ${method}`);
-  logger.info(`Current URL: ${currentUrl}`);
-  logger.info(`Current extraction method before: ${currentExtractionMethod}`);
-  
-  // Check if this is a restricted page
-  if (isRestrictedPage(currentUrl)) {
-    logger.info('Cannot re-extract content on restricted page');
-    return;
+  // 获取系统提示
+  systemPromptTemplateForPayload = config.systemPrompt;
+
+  if (state.includePageContent) {
+    logger.info('Including page content in quick input message');
+    systemPromptTemplateForPayload = systemPromptTemplateForPayload + '\n\nPage Content:\n' + pageContentForPayload;
+  } else {
+    logger.info('Not including page content in quick input message');
   }
-  
-  showLoading(`Re-extracting with ${method === 'jina' ? 'Jina AI' : 'Readability'}...`);
-  
-  // Update active button styling
-  jinaExtractBtn.classList.toggle('active', method === 'jina');
-  readabilityExtractBtn.classList.toggle('active', method === 'readability');
-  logger.info(`Button styling updated - Jina active: ${method === 'jina'}, Readability active: ${method === 'readability'}`);
-  
+
   try {
-    logger.info(`Sending RE_EXTRACT_CONTENT message to background script...`);
-    const response = await chrome.runtime.sendMessage({
-      type: 'RE_EXTRACT_CONTENT',
-      url: currentUrl,
-      method: method
+    // 向后台脚本发送消息以进行LLM处理
+    await MessageHandler.sendLlmMessage({
+      messages: chatHistory,
+      systemPromptTemplate: systemPromptTemplateForPayload,
+      extractedPageContent: pageContentForPayload,
+      currentUrl: state.currentUrl,
+      extractionMethod: state.currentExtractionMethod
     });
-    
-    logger.info(`Received response from background script:`, response);
-    
-    if (response.type === 'CONTENT_UPDATED') {
-      // Content updated successfully
-      logger.info(`Content updated successfully with method: ${response.extractionMethod || method}`);
-      extractedContent = response.content;
-      currentExtractionMethod = response.extractionMethod || method; // Update current extraction method
-      logger.info(`Current extraction method after: ${currentExtractionMethod}`);
-      await displayExtractedContent(extractedContent);
-      hideLoading();
-      logger.info(`=== RE-EXTRACT SUCCESS ===`);
-    } else if (response.type === 'CONTENT_UPDATE_ERROR') {
-      // Error updating content
-      logger.info(`Content update error: ${response.error}`);
-      showExtractionError(response.error);
-      logger.info(`=== RE-EXTRACT ERROR ===`);
-    } else {
-      logger.info(`Unexpected response type: ${response.type}`);
-      showExtractionError('Unexpected response from background script');
-      logger.info(`=== RE-EXTRACT UNEXPECTED ===`);
-    }
   } catch (error) {
-    logger.error('Error re-extracting content:', error);
-    showExtractionError('Failed to communicate with the background script');
-    logger.info(`=== RE-EXTRACT EXCEPTION ===`);
+    logger.error('Error sending quick message:', error);
+    // 将加载消息元素传递给handleLlmError，以便在发送失败时可以更新它
+    ChatManager.handleLlmError(
+      elements.chatContainer,
+      'Failed to send message to LLM',
+      assistantLoadingMessage,
+      () => {
+        elements.sendBtn.disabled = false;
+      }
+    ); 
   }
 }
 
-// Load quick input buttons from config
+/**
+ * 加载快速输入按钮
+ */
 async function loadQuickInputs() {
   try {
-    const config = await getConfig();
+    const config = await StateManager.getConfig();
     logger.info('Loaded config in loadQuickInputs:', config);
     
     if (config && config.quickInputs && config.quickInputs.length > 0) {
-      quickInputsContainer.innerHTML = '';
-      
-      config.quickInputs.forEach((quickInput, index) => {
-        const button = document.createElement('button');
-        button.className = 'btn-base quick-input-btn';
-        button.textContent = quickInput.displayText;
-        button.dataset.index = index;
-        button.dataset.sendText = quickInput.sendText;
-        
-        button.addEventListener('click', () => {
-          // Directly send the quick button message
-          sendQuickMessage(quickInput.displayText, quickInput.sendText);
-        });
-        
-        quickInputsContainer.appendChild(button);
-      });
+      QuickInputs.initQuickInputs(
+        UIManager.getElement('quickInputsContainer'),
+        config.quickInputs,
+        (displayText, sendText) => handleQuickInputClick(displayText, sendText)
+      );
     }
   } catch (error) {
     logger.error('Error loading quick inputs:', error);
   }
 }
 
-// New function to send quick button messages
-async function sendQuickMessage(displayText, sendTextTemplate) {
-  if (!sendTextTemplate) return;
+/**
+ * 切换提取方法
+ * @param {string} method - 提取方法
+ */
+function switchExtractionMethod(method) {
+  const elements = UIManager.getAllElements();
+  const state = StateManager.getState();
   
-  // Replace {CONTENT} placeholder with page content
-  let userText = sendTextTemplate;
-  if (sendTextTemplate.includes('{CONTENT}')) {
-    if (includePageContent && extractedContent) {
-      userText = sendTextTemplate.replace('{CONTENT}', extractedContent);
-    } else {
-      userText = sendTextTemplate.replace('{CONTENT}', '');
-      logger.info('No page content included in quick input or extraction not enabled');
-    }
-  }
-  
-  // Display the original displayText in the bubble
-  const userMessage = displayText;
-  
-  // Clear the input box (if it has content)
-  userInput.value = '';
-  
-  // Add user message to UI
-  logger.info('Appending quick message to UI:', userMessage);
-  appendMessageToUI('user', userMessage);
-  
-  // Show loading indicator in chat for assistant's response
-  const assistantLoadingMessage = appendMessageToUI('assistant', '<div class="spinner"></div>', null, true);
-  
-  // Add the original message to chat history
-  chatHistory.push({ role: 'user', content: userMessage });
-  
-  try {
-    // Get system prompt template and page content handling logic
-    const config = await getConfig();
-    let systemPromptTemplateForPayload = config.systemPrompt;
-    let pageContentForPayload = extractedContent; // Always pass extractedContent down
-
-    // Replace {CONTENT} placeholder in sendTextTemplate first
-    // This ensures {CONTENT} in quick input's own template is handled correctly
-    const processedSendTextTemplate = sendTextTemplate.replace('{CONTENT}', extractedContent || '');
-
-    // Now, handle the "includePageContent" checkbox for the main system prompt
-    if (includePageContent && extractedContent) {
-      logger.info('[QuickMessage] Including page content in the system prompt. Extracted content will be part of system prompt.');
-      // Append extracted content to the system prompt template
-      systemPromptTemplateForPayload = systemPromptTemplateForPayload + '\n\nPage Content:\n' + extractedContent;
-    } else {
-      logger.info('[QuickMessage] Not including page content in the system prompt. Only using for {CONTENT} replacement.');
-    }
-    
-    // The actual text to be sent as the user's last turn
-    const actualSendText = processedSendTextTemplate;
-    
-    // Prepare messages to send to LLM
-    // Note: We use the actual substituted text as the last message, but display the original text in the UI
-    const messages = chatHistory.slice(0, -1).map(msg => ({ role: msg.role, content: msg.content }));
-    messages.push({ role: 'user', content: actualSendText }); // Use processedSendTextTemplate here
-    
-    logger.info('[QuickMessage] Sending quick message to background script...');
-    logger.debug('[QuickMessage] Payload:', {
-        messages,
-        systemPromptTemplate: systemPromptTemplateForPayload,
-        extractedPageContent: pageContentForPayload, // Use the determined pageContentForPayload
-        imageBase64,
-        currentUrl,
-        extractionMethod: currentExtractionMethod
-    });
-
-    // Send message to background script
-    await chrome.runtime.sendMessage({
-      type: 'SEND_LLM_MESSAGE',
-      payload: {
-        messages,
-        systemPromptTemplate: systemPromptTemplateForPayload, // Use the new template
-        extractedPageContent: pageContentForPayload, // Use the new page content payload
-        imageBase64,
-        currentUrl,
-        extractionMethod: currentExtractionMethod
-      }
-    });
-    logger.info('Quick message sent to background script');
-  } catch (error) {
-    logger.error('Error sending quick message:', error);
-    // Pass the loading message element to handleLlmError so it can be updated if sending fails
-    handleLlmError('Failed to send message to LLM', assistantLoadingMessage); 
-  }
-}
-
-// Get config from background script
-async function getConfig() {
-  try {
-    logger.info('Requesting config from service worker...', 'Sidebar getConfig');
-    const response = await chrome.runtime.sendMessage({
-      type: 'GET_CONFIG'
-    });
-    logger.info('Received response from service worker for GET_CONFIG:', 'Sidebar getConfig', response);
-    
-    if (response && response.type === 'CONFIG_LOADED' && response.config) {
-      return response.config;
-    } else {
-      logger.error('Error loading config or config missing in response. Response:', 'Sidebar getConfig', response);
-      return null;
-    }
-  } catch (error) {
-    logger.error('Error requesting config via sendMessage:', 'Sidebar getConfig', error);
-    return null;
-  }
-}
-
-// Handle image paste into the input
-function handleImagePaste(e) {
-  const items = e.clipboardData.items;
-  
-  for (let i = 0; i < items.length; i++) {
-    if (items[i].type.indexOf('image') !== -1) {
-      const blob = items[i].getAsFile();
-      const reader = new FileReader();
-      
-      reader.onload = function(event) {
-        imageBase64 = event.target.result;
-        displayAttachedImage(imageBase64);
-      };
-      
-      reader.readAsDataURL(blob);
-      
-      // Prevent default paste behavior for the image
-      e.preventDefault();
-      return;
-    }
-  }
-}
-
-// Display the attached image in the UI
-function displayAttachedImage(dataUrl) {
-  imagePreview.innerHTML = `<img src="${dataUrl}" alt="Attached image">`;
-  imagePreviewContainer.classList.remove('hidden');
-}
-
-// Remove the attached image
-function removeAttachedImage() {
-  imagePreview.innerHTML = '';
-  imagePreviewContainer.classList.add('hidden');
-  imageBase64 = null;
-}
-
-// Export conversation as markdown
-function exportConversation() {
-  if (chatHistory.length === 0) {
+  // 检查是否为受限页面
+  if (isRestrictedPage(state.currentUrl)) {
+    logger.info('Cannot switch extraction method on restricted page');
     return;
   }
   
-  let markdownContent = `# Page Bot Conversation\n\n`;
-  markdownContent += `URL: ${currentUrl}\n\n`;
-  markdownContent += `Extracted content summary:\n\`\`\`\n${extractedContent.substring(0, 300)}${extractedContent.length > 300 ? '...' : ''}\n\`\`\`\n\n`;
-  markdownContent += `## Conversation\n\n`;
+  // 更新活动按钮样式
+  elements.jinaExtractBtn.classList.toggle('active', method === 'jina');
+  elements.readabilityExtractBtn.classList.toggle('active', method === 'readability');
   
-  chatHistory.forEach(message => {
-    markdownContent += `### \n\n`;
-    markdownContent += `${message.content}\n\n`;
-  });
+  // 显示加载状态
+  UIManager.showLoading(`Switching to ${method === 'jina' ? 'Jina AI' : 'Readability'} extraction...`);
   
-  // Create a blob and download
-  const blob = new Blob([markdownContent], { type: 'text/markdown' });
-  const url = URL.createObjectURL(blob);
-  
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `readbot-conversation-${new Date().toISOString().slice(0, 10)}.md`;
-  a.click();
-  
-  URL.revokeObjectURL(url);
-}
-
-// Show loading state
-function showLoading(message = 'Extracting content...') {
-  loadingIndicator.classList.remove('hidden');
-  extractedContentElem.classList.add('hidden');
-  extractionError.classList.add('hidden');
-  
-  // Update loading text
-  const loadingText = loadingIndicator.querySelector('.loading-text');
-  if (loadingText) {
-    loadingText.textContent = message;
-  }
-  
-  // Show buttons but in disabled state during extraction
-  copyContentBtn.classList.add('visible');
-  retryExtractBtn.classList.add('visible');
-  copyContentBtn.classList.add('disabled');
-  retryExtractBtn.classList.add('disabled');
-  copyContentBtn.classList.remove('enabled');
-  retryExtractBtn.classList.remove('enabled');
-  copyContentBtn.disabled = true;
-  retryExtractBtn.disabled = true;
-  
-  // Disable extraction method switching during extraction
-  jinaExtractBtn.disabled = true;
-  readabilityExtractBtn.disabled = true;
-}
-
-// Hide loading state
-function hideLoading() {
-  loadingIndicator.classList.add('hidden');
-  extractedContentElem.classList.remove('hidden');
-  
-  // Re-enable extraction method switching after extraction completes
-  jinaExtractBtn.disabled = false;
-  readabilityExtractBtn.disabled = false;
-}
-
-// Show extraction error
-function showExtractionError(error) {
-  loadingIndicator.classList.add('hidden');
-  extractedContentElem.classList.add('hidden');
-  extractionError.classList.remove('hidden');
-  
-  // Show both buttons but only enable retry button
-  copyContentBtn.classList.add('visible');
-  retryExtractBtn.classList.add('visible');
-  
-  // Copy button disabled (gray)
-  copyContentBtn.classList.add('disabled');
-  copyContentBtn.classList.remove('enabled');
-  copyContentBtn.disabled = true;
-  
-  // Retry button enabled (primary color)
-  retryExtractBtn.classList.remove('disabled');
-  retryExtractBtn.classList.add('enabled');
-  retryExtractBtn.disabled = false;
-  
-  let errorMessage = 'Failed to extract content.'; // Default message
-  if (error) {
-    if (error === 'CONTENT_SCRIPT_NOT_CONNECTED') {
-      errorMessage = 'Please reload page and retry.';
-    } else if (error === 'page_loading') {
-      errorMessage = 'Page content not ready, please wait for page to load fully and retry.';
-    } else if (typeof error === 'string') {
-      errorMessage = error;
-    } else if (error.message) {
-      errorMessage = error.message;
-    } else {
-      try {
-        errorMessage = JSON.stringify(error);
-      } catch (e) {
-        // If stringify fails, use the default message
-      }
+  // 调用内容提取器切换方法
+  ContentExtractor.switchMethod(
+    state.currentUrl,
+    method,
+    state.currentExtractionMethod,
+    // 成功回调
+    (content, extractionMethod) => {
+      StateManager.updateStateItem('extractedContent', content);
+      StateManager.updateStateItem('currentExtractionMethod', extractionMethod);
+      UIManager.displayExtractedContent(content);
+      UIManager.hideLoading();
+    },
+    // 错误回调
+    (error) => {
+      UIManager.showExtractionError(error);
     }
-  }
-  extractionError.textContent = errorMessage;
-  logger.info('Extraction Error:', errorMessage);
-  updateExtractionButtonUI(); // Ensure buttons are updated based on state
+  );
 }
 
-// Show restricted page message
-function showRestrictedPageMessage() {
-  loadingIndicator.classList.add('hidden');
-  extractedContentElem.classList.add('hidden');
-  extractionError.classList.remove('hidden');
-  // Show buttons but keep them disabled on restricted pages
-  copyContentBtn.classList.add('visible');
-  retryExtractBtn.classList.add('visible');
-  copyContentBtn.classList.add('disabled');
-  retryExtractBtn.classList.add('disabled');
-  copyContentBtn.classList.remove('enabled');
-  retryExtractBtn.classList.remove('enabled');
-  copyContentBtn.disabled = true;
-  retryExtractBtn.disabled = true;
+/**
+ * 重新提取内容
+ * @param {string} method - 提取方法
+ */
+function reExtractContent(method) {
+  const state = StateManager.getState();
   
-  // Clear existing content
-  extractionError.innerHTML = '';
-  
-  // Create restricted page message
-  const messageDiv = document.createElement('div');
-  messageDiv.style.cssText = 'padding: 20px; text-align: center; color: #666;';
-  
-  messageDiv.innerHTML = `
-    <div style="font-size: 18px; margin-bottom: 10px;">🚫</div>
-    <div style="font-weight: bold; margin-bottom: 10px;">Restricted Page</div>
-    <div style="font-size: 14px; line-height: 1.4; margin-bottom: 15px;">
-      Page Bot cannot work on Chrome internal pages (chrome://, chrome-extension://, etc.).
-    </div>
-    <div style="font-size: 14px; line-height: 1.4; color: #888;">
-      Please navigate to a regular webpage to use the extension.
-    </div>
-  `;
-  
-  extractionError.appendChild(messageDiv);
-  
-  // Disable extraction buttons and input
-  jinaExtractBtn.disabled = true;
-  readabilityExtractBtn.disabled = true;
-  userInput.disabled = true;
-  sendBtn.disabled = true;
-}
-
-// Apply configured panel size - updated for side panel
-async function applyPanelSize() {
-  try {
-    const config = await getConfig();
-    const panelWidth = config.panelWidth || 400; // Default width if not configured
-    
-    // Side panels typically have width controlled by Chrome, but we can set min-width
-    document.documentElement.style.setProperty('--panel-width', `${panelWidth}px`);
-    
-    // Height is typically controlled by the browser window
-    document.documentElement.style.height = '100%';
-  } catch (error) {
-    logger.error('Error applying panel size:', error);
-  }
-}
-
-// Note: Content display height is now managed by the resize functionality
-
-// Clear conversation and context
-async function clearConversationAndContext() {
-  try {
-    // Clear UI
-    chatContainer.innerHTML = '';
-    
-    // Clear chat history array
-    chatHistory = [];
-    
-    // Keep extracted content, just clear the chat history
-    // extractedContent = '';
-    
-    // Clear from storage if we have a URL
-    if (currentUrl) {
-      logger.info('Clearing chat history for URL:', currentUrl);
-      await chrome.runtime.sendMessage({
-        type: 'CLEAR_URL_DATA',
-        url: currentUrl,
-        clearContent: false, // Keep the content
-        clearChat: true // Just clear the chat
-      });
-    }
-    
-    logger.info('Conversation cleared');
-  } catch (error) {
-    logger.error('Error clearing conversation:', error);
-  }
-}
-
-// Copy extracted content to clipboard
-function copyExtractedContent() {
-  // Check if button is disabled
-  if (copyContentBtn.disabled || copyContentBtn.classList.contains('disabled')) {
+  // 检查是否为受限页面
+  if (isRestrictedPage(state.currentUrl)) {
+    logger.info('Cannot re-extract content on restricted page');
     return;
   }
   
-  if (!extractedContent) {
-    showCopyToast('No content to copy');
-    return;
-  }
+  // 显示加载状态
+  UIManager.showLoading(`Re-extracting with ${method === 'jina' ? 'Jina AI' : 'Readability'}...`);
   
-  navigator.clipboard.writeText(extractedContent)
-    .then(() => showCopyToast('Content copied to clipboard'))
-    .catch(err => {
-      logger.error('Failed to copy content:', err);
-      showCopyToast('Failed to copy content');
-    });
-}
-
-// Copy assistant message plain text
-function copyMessageText(content) {
-  const tempDiv = document.createElement('div');
-  tempDiv.innerHTML = window.marked.parse(content);
-  const textContent = tempDiv.textContent || tempDiv.innerText || '';
-  
-  navigator.clipboard.writeText(textContent)
-    .then(() => showCopyToast('Text copied to clipboard'))
-    .catch(err => logger.error('Failed to copy text:', err));
-}
-
-// Copy assistant message Markdown
-function copyMessageMarkdown(content) {
-  navigator.clipboard.writeText(content)
-    .then(() => showCopyToast('Markdown copied to clipboard'))
-    .catch(err => {
-      logger.error('Error copying markdown to clipboard:', err);
-      showCopyToast('Error copying markdown');
-    });
-}
-
-// Edit user message
-function editMessage(messageDiv) {
-  // Get message content div
-  const contentDiv = messageDiv.querySelector('.message-content');
-  if (!contentDiv) return;
-  
-  // Check if already in edit mode
-  if (contentDiv.classList.contains('edit-mode')) return;
-  
-  // Get current content (either from original or from previous edit)
-  const currentContent = contentDiv.textContent || contentDiv.innerText;
-  
-  // Save current content for potential cancel
-  contentDiv.dataset.originalContent = currentContent;
-  
-  // Create textarea
-  const textarea = document.createElement('textarea');
-  textarea.value = currentContent;
-  
-  // Replace content with textarea
-  contentDiv.innerHTML = '';
-  contentDiv.classList.add('edit-mode');
-  contentDiv.appendChild(textarea);
-  
-  // Focus textarea
-  textarea.focus();
-  
-  // Handle enter key (submit) and escape key (cancel)
-  textarea.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      const newContent = textarea.value.trim();
-      saveEditedMessage(messageDiv, newContent);
-    } else if (e.key === 'Escape') {
-      cancelEdit(contentDiv);
+  // 调用内容提取器重新提取方法
+  ContentExtractor.reExtract(
+    state.currentUrl,
+    method,
+    // 成功回调
+    (content, extractionMethod) => {
+      StateManager.updateStateItem('extractedContent', content);
+      StateManager.updateStateItem('currentExtractionMethod', extractionMethod);
+      UIManager.displayExtractedContent(content);
+      UIManager.hideLoading();
+    },
+    // 错误回调
+    (error) => {
+      UIManager.showExtractionError(error);
     }
-  });
-  
-  // Add blur event to save when clicking outside
-  textarea.addEventListener('blur', function() {
-    const newContent = textarea.value.trim();
-    saveEditedMessage(messageDiv, newContent);
-  });
-  
-  logger.info(`Edit mode activated for message ${messageDiv.id}`);
+  );
 }
 
-// Save edited message
-function saveEditedMessage(messageDiv, newContent) {
-  const contentDiv = messageDiv.querySelector('.message-content');
-  if (!contentDiv || !contentDiv.classList.contains('edit-mode')) return;
+/**
+ * 复制提取的内容
+ */
+async function copyExtractedContent() {
+  const elements = UIManager.getAllElements();
   
-  // Don't save if content is empty
-  if (!newContent) {
-    cancelEdit(contentDiv);
+  // 检查按钮是否禁用
+  if (elements.copyContentBtn.disabled || elements.copyContentBtn.classList.contains('disabled')) {
     return;
   }
   
-  // Get original content for comparison
-  const originalContent = contentDiv.dataset.originalContent;
+  const content = StateManager.getStateItem('extractedContent');
+  const success = await ContentExtractor.copyExtractedContent(content);
   
-  // If content hasn't changed, just cancel edit
-  if (newContent === originalContent) {
-    cancelEdit(contentDiv);
-    return;
-  }
-  
-  // Update the content display
-  contentDiv.classList.remove('edit-mode');
-  contentDiv.innerHTML = newContent;
-  
-  // Find the message index in chatHistory
-  const messageIndex = findMessageIndexInHistory(messageDiv);
-  if (messageIndex !== -1) {
-    // Update the message in the chat history
-    chatHistory[messageIndex].content = newContent;
-    
-    // Update any button data attributes
-    const copyButtons = messageDiv.querySelectorAll('.message-action-btn[data-content]');
-    copyButtons.forEach(button => {
-      button.dataset.content = newContent;
-    });
-    
-    // Save updated chat history to storage
-    if (currentUrl) {
-      chrome.runtime.sendMessage({
-        type: 'SAVE_CHAT_HISTORY',
-        url: currentUrl,
-        chatHistory: chatHistory
-      }).then(() => {
-        logger.info(`Edited message saved to storage for URL: ${currentUrl}`);
-      }).catch(error => {
-        logger.error('Error saving edited message to storage:', error);
-      });
-    }
-    
-    logger.info(`Message ${messageDiv.id} edited successfully, chatHistory updated`);
+  if (success) {
+    showCopyToast('Content copied to clipboard');
   } else {
-    logger.error(`Could not find message ${messageDiv.id} in chatHistory`);
+    showCopyToast('Failed to copy content');
   }
 }
 
-// Cancel message edit
-function cancelEdit(contentDiv) {
-  if (!contentDiv.classList.contains('edit-mode')) return;
-  
-  // Restore original content
-  const originalContent = contentDiv.dataset.originalContent;
-  contentDiv.innerHTML = originalContent;
-  contentDiv.classList.remove('edit-mode');
-  
-  logger.info('Edit canceled, original content restored');
-}
-
-// Find message index in chatHistory
-function findMessageIndexInHistory(messageDiv) {
-  // Get the message's position in the DOM
-  const allMessages = Array.from(chatContainer.querySelectorAll('.chat-message'));
-  const messagePosition = allMessages.indexOf(messageDiv);
-  
-  if (messagePosition === -1 || messagePosition >= chatHistory.length) {
-    return -1;
-  }
-  
-  return messagePosition;
-}
-
-// Retry message (delete subsequent messages and resend)
-async function retryMessage(messageDiv) {
-  // Find the message index in chatHistory
-  const messageIndex = findMessageIndexInHistory(messageDiv);
-  if (messageIndex === -1) {
-    logger.error(`Could not find message ${messageDiv.id} in chat history for retry`);
-    return;
-  }
-  
-  // Get the edited message content
-  const contentDiv = messageDiv.querySelector('.message-content');
-  const messageContent = contentDiv.textContent || contentDiv.innerText;
-  
-  // Confirm that we want to delete all subsequent messages
-  const subsequentMessagesCount = chatHistory.length - messageIndex - 1;
-  
-  // Remove all subsequent messages from DOM
-  const allMessages = Array.from(chatContainer.querySelectorAll('.chat-message'));
-  for (let i = messageIndex + 1; i < allMessages.length; i++) {
-    chatContainer.removeChild(allMessages[i]);
-  }
-  
-  // Update chatHistory to include only messages up to and including the selected message
-  chatHistory = chatHistory.slice(0, messageIndex + 1);
-  
-  // Update the content of the message we're retrying (in case it was edited)
-  chatHistory[messageIndex].content = messageContent;
-  
-  // Clear input and disable send button
-  userInput.value = '';
-  sendBtn.disabled = true;
-  
-  // Show loading indicator in chat
-  const loadingMsgId = appendMessageToUI('assistant', '<div class="spinner"></div>', null, true);
-  
-  try {
-    // Get original system prompt and include page content if needed
-    let systemPromptForRetry = config.systemPrompt;
-    if (includePageContent) {
-      systemPromptForRetry += '\n\nPage Content:\n' + extractedContent;
-    }
-    
-    // Send message to background script for LLM processing
-    await chrome.runtime.sendMessage({
-      type: 'SEND_LLM_MESSAGE',
-      payload: {
-        messages: chatHistory,
-        systemPromptTemplate: systemPromptForRetry,
-        extractedPageContent: extractedContent,
-        imageBase64: null, // No image for retry
-        currentUrl: currentUrl,
-        extractionMethod: currentExtractionMethod
-      }
-    });
-    
-    logger.info('Retry message sent successfully');
-  } catch (error) {
-    logger.error('Error retrying message:', error);
-    handleLlmError('Failed to retry message', loadingMsgId);
-  }
-}
-
-// Show copy toast
-function showCopyToast(message) {
-  // Create toast element
-  const toast = document.createElement('div');
-  toast.className = 'copy-toast';
-  toast.textContent = message;
-  
-  // Add to document
-  document.body.appendChild(toast);
-  
-  // Remove after 2 seconds
-  setTimeout(() => {
-    toast.classList.add('fadeout');
-    setTimeout(() => document.body.removeChild(toast), 300);
-  }, 2000);
-}
-
-// Resize functionality for content section
-function startResize(e) {
-  isResizing = true;
-  startY = e.clientY;
-  startHeight = contentSection.offsetHeight;
-  e.preventDefault();
-  
-  // Add visual feedback
-  document.body.style.cursor = 'ns-resize';
-  document.body.style.userSelect = 'none';
-}
-
-function doResize(e) {
-  // Content section resize logic
-  if (isResizing) {
-    const deltaY = e.clientY - startY;
-    const newHeight = startHeight + deltaY;
-    
-    // Set minimum and maximum heights
-    const minHeight = 80;
-    const maxHeight = window.innerHeight * 0.7; // Maximum 70% of window height
-    
-    if (newHeight >= minHeight && newHeight <= maxHeight) {
-      contentSection.style.height = `${newHeight}px`;
-      contentSection.style.maxHeight = `${newHeight}px`;
-    }
-  }
-  
-  // Input box resize logic - Adjust height from top
-  // When handle is above input box:
-  // - Dragging up (deltaY negative) = Increase input height (inverted behavior)
-  // - Dragging down (deltaY positive) = Decrease input height (inverted behavior)
-  // Invert deltaY to make dragging up increase height
-  if (isInputResizing) {
-    const deltaY = e.clientY - inputStartY;
-    const newHeight = Math.round(inputStartHeight - (deltaY * 1.2));
-    
-    // Set minimum and maximum heights for input
-    const minHeight = 30;
-    const maxHeight = 200;
-    
-    if (newHeight >= minHeight && newHeight <= maxHeight) {
-      // Use integer value to avoid layout issues with fractional pixels
-      const roundedHeight = Math.floor(newHeight);
-      userInput.style.height = `${roundedHeight}px`;
-      // Real-time input height update
-      userInput.style.transition = 'none';
-      logger.info(`Resizing input to height: ${roundedHeight}px, deltaY: ${deltaY}`);
-      
-      // Add debounce to avoid frequent layout updates
-      if (!window.layoutUpdateTimer) {
-        // Update icon layout based on input height
-        updateIconsLayout(roundedHeight);
-        
-        // Debounce: No updates within 50ms
-        window.layoutUpdateTimer = setTimeout(() => {
-          window.layoutUpdateTimer = null;
-        }, 50);
-      }
-    }
-  }
-}
-
-// Update icon layout based on input height
-function updateIconsLayout(height) {
-  // Remove transition for immediate layout update
-  buttonGroup.style.transition = 'none';
-  
-  // Clear all layout classes
-  buttonGroup.classList.remove('layout-row', 'layout-grid', 'layout-column');
-  
-  // Set layout based on height threshold
-  if (height <= 40) {
-    // Default layout: single row
-    buttonGroup.classList.add('layout-row');
-    logger.info('Setting row layout');
-  } else if (height > 40 && height <= 80) {
-    // Grid layout: two rows, two columns
-    buttonGroup.classList.add('layout-grid');
-    logger.info('Setting grid layout');
-  } else {
-    // Column layout: single column multiple rows
-    buttonGroup.classList.add('layout-column');
-    logger.info('Setting column layout');
-  }
-  
-  // Ensure send button always stays primary class
-  const sendBtn = document.getElementById('sendBtn');
-  if (sendBtn) {
-    if (!sendBtn.classList.contains('primary')) {
-      sendBtn.classList.add('primary');
-    }
-  }
-  
-  // Reset all button styles
-  Array.from(buttonGroup.children).forEach(button => {
-    // Clear any inline styles
-    button.removeAttribute('style');
-  });
-  
-  // Use setTimeout to restore transition effect
-  setTimeout(() => {
-    buttonGroup.style.transition = '';
-  }, 50);
-}
-
-function stopResize() {
-  if (isResizing) {
-    isResizing = false;
-    
-    // Remove visual feedback
-    document.body.style.cursor = '';
-    document.body.style.userSelect = '';
-    
-    // Save the new height to storage for persistence
-    const currentHeight = contentSection.offsetHeight;
-    saveContentSectionHeight(currentHeight);
-  }
-  
-  if (isInputResizing) {
-    isInputResizing = false;
-    
-    // Remove visual feedback
-    document.body.style.cursor = '';
-    document.body.style.userSelect = '';
-    
-    // Restore input transition effect
-    userInput.style.transition = '';
-    
-    // Clear layout update timer
-    if (window.layoutUpdateTimer) {
-      clearTimeout(window.layoutUpdateTimer);
-      window.layoutUpdateTimer = null;
-    }
-    
-    // Final layout update to ensure correct layout state
-    updateIconsLayout(userInput.offsetHeight);
-    
-    // No need to save input height as per requirements
-    logger.info('Stopped input resize');
-  }
-}
-
-// Save content section height to local storage
-async function saveContentSectionHeight(height) {
-  try {
-    await chrome.storage.local.set({ contentSectionHeight: height });
-    logger.info(`Content section height saved: ${height}px`);
-  } catch (error) {
-    logger.error('Error saving content section height:', error);
-  }
-}
-
-// Reset content section height to config default (called when panel opens)
-async function resetContentSectionHeight() {
-  try {
-    const config = await getConfig();
-    if (config && typeof config.contentDisplayHeight === 'number') {
-      const height = Math.max(config.contentDisplayHeight, 80); // Ensure minimum height
-      contentSection.style.height = `${height}px`;
-      contentSection.style.maxHeight = `${height}px`;
-      logger.info(`Reset content section height to config default: ${height}px`);
-    } else {
-      // Fallback to default
-      const defaultHeight = 100;
-      contentSection.style.height = `${defaultHeight}px`;
-      contentSection.style.maxHeight = `${defaultHeight}px`;
-      logger.info(`Reset content section height to default: ${defaultHeight}px`);
-    }
-  } catch (error) {
-    logger.error('Error resetting content section height:', error);
-    // Fallback to default
-    const defaultHeight = 100;
-    contentSection.style.height = `${defaultHeight}px`;
-    contentSection.style.maxHeight = `${defaultHeight}px`;
-  }
-}
-
-// Load and apply saved content section height
-async function loadContentSectionHeight() {
-  try {
-    // First try to get saved height from local storage
-    const result = await chrome.storage.local.get(['contentSectionHeight']);
-    
-    if (result.contentSectionHeight) {
-      const height = result.contentSectionHeight;
-      contentSection.style.height = `${height}px`;
-      contentSection.style.maxHeight = `${height}px`;
-      logger.info(`Applied saved content section height: ${height}px`);
-      return;
-    }
-    
-    // If no saved height, use config default
-    const config = await getConfig();
-    if (config && typeof config.contentDisplayHeight === 'number') {
-      const height = Math.max(config.contentDisplayHeight, 80); // Ensure minimum height
-      contentSection.style.height = `${height}px`;
-      contentSection.style.maxHeight = `${height}px`;
-      logger.info(`Applied config content section height: ${height}px`);
-    } else {
-      // Fallback to default
-      const defaultHeight = 100;
-      contentSection.style.height = `${defaultHeight}px`;
-      contentSection.style.maxHeight = `${defaultHeight}px`;
-      logger.info(`Applied default content section height: ${defaultHeight}px`);
-    }
-  } catch (error) {
-    logger.error('Error loading content section height:', error);
-    // Fallback to default
-    const defaultHeight = 100;
-    contentSection.style.height = `${defaultHeight}px`;
-    contentSection.style.maxHeight = `${defaultHeight}px`;
-  }
-}
-
-// Helper function to update the UI of extraction method buttons
-function updateExtractionButtonUI() {
-  if (jinaExtractBtn && readabilityExtractBtn) {
-    jinaExtractBtn.classList.toggle('active', currentExtractionMethod === 'jina');
-    readabilityExtractBtn.classList.toggle('active', currentExtractionMethod === 'readability');
-    logger.info(`Extraction buttons UI updated. Jina active: ${currentExtractionMethod === 'jina'}, Readability active: ${currentExtractionMethod === 'readability'}`);
-  } else {
-    logger.warn('Extraction buttons not found, cannot update UI.');
-  }
-}
-
-// Toggle page content inclusion
+/**
+ * 切换是否包含页面内容
+ */
 function toggleIncludePageContent() {
-  includePageContent = !includePageContent;
-  
-  // Update button appearance using data-enabled attribute
-  includePageContentBtn.setAttribute('data-enabled', includePageContent ? 'true' : 'false');
-  
-  logger.info(`Page content inclusion ${includePageContent ? 'enabled' : 'disabled'}`);
+  const includePageContent = StateManager.toggleIncludePageContent();
+  UIManager.updateIncludePageContentUI(includePageContent);
 }
 
-// Input box resize functions
-function startInputResize(e) {
-  isInputResizing = true;
-  inputStartY = e.clientY;
-  inputStartHeight = userInput.offsetHeight;
-  e.preventDefault();
+/**
+ * 导出对话
+ */
+function exportConversation() {
+  const state = StateManager.getState();
+  ChatManager.exportConversation(
+    state.currentUrl,
+    state.extractedContent,
+    state.chatHistory
+  );
+}
+
+/**
+ * 清除对话和上下文
+ */
+async function clearConversationAndContext() {
+  const elements = UIManager.getAllElements();
   
-  // Add visual feedback
-  document.body.style.cursor = 'ns-resize';
-  document.body.style.userSelect = 'none';
-  logger.info('Started input resize, initial height:', inputStartHeight);
+  // 清除UI
+  ChatHistory.clearChatHistory(elements.chatContainer);
+  
+  // 从存储中清除(如果我们有URL)
+  await StateManager.clearUrlData(false, true);
+  
+  logger.info('Conversation cleared');
+}
+
+/**
+ * 设置消息按钮跟随滚动的效果 - 完全重写
+ */
+function setupMessageButtonsScroll() {
+  const chatContainer = document.getElementById('chatContainer');
+  if (!chatContainer) return;
+
+  // 跟踪当前悬停的消息和其按钮
+  let currentHoveredMessage = null;
+  let currentFloatingButtons = null;
+  
+  /**
+   * 清理浮动按钮状态
+   */
+  function clearFloatingButtons() {
+    if (currentFloatingButtons) {
+      currentFloatingButtons.classList.remove('floating');
+      currentFloatingButtons.style.position = '';
+      currentFloatingButtons.style.top = '';
+      currentFloatingButtons.style.right = '';
+      currentFloatingButtons.style.transform = '';
+      currentFloatingButtons = null;
+    }
+    currentHoveredMessage = null;
+  }
+  
+  /**
+   * 更新按钮位置
+   */
+  function updateButtonPosition(message, buttons) {
+    const messageRect = message.getBoundingClientRect();
+    const containerRect = chatContainer.getBoundingClientRect();
+    
+    // 检查消息是否完全在可视区域内
+    const isFullyVisible = messageRect.top >= containerRect.top && 
+                           messageRect.bottom <= containerRect.bottom;
+    
+    if (isFullyVisible) {
+      // 消息完全可见，使用常规定位
+      buttons.classList.remove('floating');
+      buttons.style.position = '';
+      buttons.style.top = '';
+      buttons.style.right = '';
+      buttons.style.transform = '';
+    } else {
+      // 消息被部分裁剪，使用浮动定位
+      buttons.classList.add('floating');
+      
+      // 计算按钮在可视区域内的最佳位置
+      const visibleTop = Math.max(messageRect.top, containerRect.top);
+      const visibleBottom = Math.min(messageRect.bottom, containerRect.bottom);
+      const visibleCenter = (visibleTop + visibleBottom) / 2;
+      
+      // 设置浮动位置
+      buttons.style.position = 'fixed';
+      buttons.style.top = `${visibleCenter}px`;
+      buttons.style.right = `${window.innerWidth - containerRect.right + 12}px`;
+      buttons.style.transform = 'translateY(-50%)';
+    }
+  }
+  
+  // 使用事件委托处理鼠标进入消息
+  chatContainer.addEventListener('mouseover', function(event) {
+    const message = event.target.closest('.chat-message');
+    if (!message || message === currentHoveredMessage) return;
+    
+    // 清理之前的状态
+    clearFloatingButtons();
+    
+    const buttons = message.querySelector('.message-buttons');
+    if (!buttons) return;
+    
+    currentHoveredMessage = message;
+    currentFloatingButtons = buttons;
+    
+    // 立即更新按钮位置
+    updateButtonPosition(message, buttons);
+  });
+  
+  // 使用事件委托处理鼠标离开消息
+  chatContainer.addEventListener('mouseout', function(event) {
+    const message = event.target.closest('.chat-message');
+    if (!message || message !== currentHoveredMessage) return;
+    
+    // 检查鼠标是否真的离开了消息区域（而不是移动到子元素）
+    const relatedTarget = event.relatedTarget;
+    if (relatedTarget && message.contains(relatedTarget)) return;
+    
+    clearFloatingButtons();
+  });
+  
+  // 滚动时更新按钮位置
+  chatContainer.addEventListener('scroll', function() {
+    if (currentHoveredMessage && currentFloatingButtons) {
+      updateButtonPosition(currentHoveredMessage, currentFloatingButtons);
+    }
+  });
+  
+  // 窗口大小变化时更新位置
+  window.addEventListener('resize', function() {
+    if (currentHoveredMessage && currentFloatingButtons) {
+      updateButtonPosition(currentHoveredMessage, currentFloatingButtons);
+    }
+  });
 } 

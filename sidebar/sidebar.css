@@ -441,7 +441,7 @@ body {
 
 .chat-message {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   padding: 4px 8px;
   border-radius: 0;
   max-width: 100%;
@@ -459,9 +459,7 @@ body {
   color: var(--text-color);
   border: none;
   border-bottom: 1px solid var(--border-color);
-  display: flex;
-  flex-direction: row;
-  align-items: flex-start;
+  position: relative;
 }
 
 .assistant-message {
@@ -470,13 +468,12 @@ body {
   color: var(--text-color);
   border: none;
   border-bottom: 1px solid var(--border-color);
-  display: flex;
-  flex-direction: row;
-  align-items: flex-start;
+  position: relative;
 }
 
 /* Message role */
 .message-role {
+  display: none;
   font-size: 12px;
   font-weight: 600;
   margin-bottom: 4px;
@@ -489,21 +486,50 @@ body {
   line-height: 1.3;
   overflow-wrap: break-word;
   flex: 1;
+  padding-right: 50px; /* 为按钮预留空间 - 按钮变小后进一步减少 */
 }
 
-/* Message action buttons styles */
+/* Message action buttons styles - Completely rewritten */
 .message-buttons {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-gap: 2px;
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
   visibility: hidden;
   opacity: 0;
-  margin-top: 0;
-  position: sticky;
-  top: 10px;
-  align-self: flex-start;
-  min-width: 42px;
-  z-index: 10;
+  transition: opacity 0.2s ease;
+  z-index: 100;
+  display: flex;
+  gap: 2px;
+  background: none;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  backdrop-filter: none;
+}
+
+/* Dynamic layout based on message height */
+.message-buttons.layout-row {
+  flex-direction: row;
+  align-items: center;
+}
+
+.message-buttons.layout-2rows {
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+
+.message-buttons.layout-2rows .button-row {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+}
+
+.message-buttons.layout-column {
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
 }
 
 /* Show buttons on message hover */
@@ -512,34 +538,57 @@ body {
   opacity: 1;
 }
 
+/* Floating buttons for long messages during scroll */
+.message-buttons.floating {
+  position: fixed;
+  visibility: visible;
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 1px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.message-buttons.floating .message-action-btn {
+  background-color: rgba(255, 255, 255, 0.8);
+}
+
+.message-buttons.floating .message-action-btn:hover {
+  background-color: var(--primary-color);
+}
+
 .message-action-btn {
   width: 20px;
   height: 20px;
-  border-radius: 4px;
+  border-radius: 3px;
   border: none;
-  background-color: rgba(240, 240, 240, 0.9);
+  background-color: transparent;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
-  margin: 1px;
+  transition: background-color 0.2s ease;
+  margin: 0;
+  padding: 0;
 }
 
 .message-action-btn:hover {
-  background-color: var(--hover-color);
-  transform: translateY(-1px);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  background-color: var(--primary-color);
+}
+
+.message-action-btn:hover .material-icons {
+  color: white;
 }
 
 .message-action-btn:active {
-  transform: translateY(0);
-  box-shadow: none;
+  background-color: #3b78e7;
 }
 
 .message-action-btn .material-icons {
   font-size: 12px;
   color: var(--text-color);
+  transition: color 0.2s ease;
 }
 
 /* New edit mode for messages */
