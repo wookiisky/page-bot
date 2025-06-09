@@ -1386,7 +1386,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* 统一按钮基础样式 */
+/* Unified button base style */
 .btn-base {
   border: none;
   border-radius: 4px;
@@ -1397,7 +1397,7 @@ body {
   transition: all 0.2s ease;
 }
 
-/* 小型按钮样式（内容提取区和聊天输入区） */
+/* Small button style (content extraction and chat input area) */
 .action-btn, 
 .extraction-btn,
 .clear-btn,
@@ -1434,13 +1434,13 @@ body {
   color: var(--text-color);
 }
 
-/* 激活状态样式 */
+/* Active state style */
 .extraction-btn.active {
   background-color: var(--primary-color);
   color: white;
 }
 
-/* 启用状态样式 */
+/* Enabled state style */
 .action-btn.enabled {
   background-color: transparent;
   border: 1px solid var(--primary-color);
@@ -1454,7 +1454,7 @@ body {
   background-color: rgba(66, 133, 244, 0.1);
 }
 
-/* 发送按钮特殊样式（强调） */
+/* Special style for send button (emphasis) */
 .send-btn {
   background-color: var(--primary-color);
   color: white;
@@ -1490,7 +1490,7 @@ body {
   box-shadow: none;
 }
 
-/* 调整按钮容器的间距 */
+/* Adjust button container spacing */
 .extraction-controls {
   gap: 8px;
 }
@@ -1503,9 +1503,9 @@ body {
   gap: 4px;
 }
 
-/* 移除冗余样式 */
+/* Remove redundant styles */
 
-/* Jina按钮特殊样式 */
+/* Special style for Jina button */
 .jina-btn {
   padding: 3px;
 }
@@ -1515,13 +1515,13 @@ body {
   height: 16px;
 }
 
-/* 输入区域调整 */
+/* Input area adjustment */
 .input-wrapper {
   gap: 6px;
 }
 
-/* 图标布局样式 - 不同行列组合 */
-/* 默认布局：单行 */
+/* Icon layout styles - different row/column combinations */
+/* Default layout: single row */
 .input-actions {
   display: flex;
   flex-direction: row;
@@ -1533,7 +1533,7 @@ body {
   justify-content: flex-start;
 }
 
-/* 两行两列布局 */
+/* Two rows and two columns layout */
 .input-actions.layout-2x2 {
   display: grid;
   grid-template-columns: repeat(2, 26px);
@@ -1544,7 +1544,7 @@ body {
   justify-content: center;
 }
 
-/* 四行一列布局 */
+/* Four rows and one column layout */
 .input-actions.layout-4x1 {
   display: flex;
   flex-direction: column;
@@ -1555,7 +1555,7 @@ body {
   justify-content: flex-start;
 }
 
-/* 统一按钮样式 */
+/* Unified button style */
 .input-actions .action-btn,
 .input-actions .clear-btn,
 .input-actions .export-btn {
@@ -1576,7 +1576,7 @@ body {
   border: 1px solid transparent;
 }
 
-/* 图标大小统一 */
+/* Unified icon size */
 .input-actions .action-btn .material-icons,
 .input-actions .clear-btn .material-icons,
 .input-actions .export-btn .material-icons {

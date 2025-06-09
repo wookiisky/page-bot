@@ -1,5 +1,5 @@
 /**
- * chat-manager.js - 聊天功能管理
+ * chat-manager.js - Chat functionality management
  */
 
 import { createLogger, hasMarkdownElements } from './utils.js';
@@ -9,50 +9,50 @@ import { displayChatHistory as displayChatHistoryFromModule } from './chat-histo
 const logger = createLogger('ChatManager');
 
 /**
- * 将消息追加到聊天UI
- * @param {HTMLElement} chatContainer - 聊天容器元素
- * @param {string} role - 消息角色('user'或'assistant')
- * @param {string} content - 消息内容
- * @param {string|null} imageBase64 - 可选的图片数据
- * @param {boolean} isStreaming - 是否为流式传输消息
- * @param {number|null} customTimestamp - 可选的自定义时间戳
- * @returns {HTMLElement} 创建的消息元素
+ * Append message to chat UI
+ * @param {HTMLElement} chatContainer - Chat container element
+ * @param {string} role - Message role ('user' or 'assistant')
+ * @param {string} content - Message content
+ * @param {string|null} imageBase64 - Optional image data
+ * @param {boolean} isStreaming - Whether this is a streaming message
+ * @param {number|null} customTimestamp - Optional custom timestamp
+ * @returns {HTMLElement} Created message element
  */
 const appendMessageToUI = (chatContainer, role, content, imageBase64 = null, isStreaming = false, messageTimestamp = Date.now()) => {
   logger.info(`[appendMessageToUI] Appending ${role} message, isStreaming=${isStreaming}, timestamp=${messageTimestamp}`);
   
-  // 创建消息元素
+  // Create message element
   const messageDiv = document.createElement('div');
   messageDiv.className = `chat-message ${role}-message`;
   messageDiv.id = `message-${messageTimestamp}`;
   
-  // 如果有图片，保存到元素属性
+  // If there's an image, save it to element attributes
   if (imageBase64) {
     messageDiv.setAttribute('data-image', imageBase64);
   }
   
-  // 创建角色元素 - 移除角色文本显示
+  // Create role element - Remove role text display
   const roleDiv = document.createElement('div');
   roleDiv.className = 'message-role';
-  // 不再显示角色标识
+  // No longer display role identifier
   // roleDiv.textContent = role === 'user' ? 'You' : 'AI';
   
-  // 创建内容元素
+  // Create content element
   const contentDiv = document.createElement('div');
   contentDiv.className = 'message-content';
   
-  // 保存原始内容以便编辑和导出
+  // Save original content for editing and export
   contentDiv.setAttribute('data-raw-content', content);
   
   if (role === 'assistant' && isStreaming) {
     logger.info(`[appendMessageToUI ${messageTimestamp}] Condition for streaming assistant placeholder met.`);
     try {
-      // 流式传输占位符的内容已经是带有spinner的HTML
+      // Streaming placeholder content is already HTML with spinner
       contentDiv.innerHTML = content; 
       logger.info(`[appendMessageToUI ${messageTimestamp}] Applied raw HTML content for streaming placeholder.`);
     } catch (error) {
       logger.error(`[appendMessageToUI ${messageTimestamp}] Error setting innerHTML for streaming placeholder:`, error);
-      contentDiv.textContent = content; // 回退处理
+      contentDiv.textContent = content; // Fallback handling
     }
     messageDiv.dataset.streaming = 'true';
     logger.info(`[appendMessageToUI ${messageTimestamp}] Set data-streaming=true on messageDiv (ID: ${messageDiv.id}). Element:`, messageDiv);
@@ -74,7 +74,7 @@ const appendMessageToUI = (chatContainer, role, content, imageBase64 = null, isS
           logger.info(`[appendMessageToUI ${messageTimestamp}] Parsed Markdown for assistant message.`);
         } catch (error) {
           logger.error(`[appendMessageToUI ${messageTimestamp}] Error parsing markdown for assistant message:`, error);
-          contentDiv.textContent = content; // 回退到纯文本
+          contentDiv.textContent = content; // Fallback to plain text
           contentDiv.classList.add('no-markdown'); // Add class for preserving line breaks
         }
       } else {
@@ -89,18 +89,18 @@ const appendMessageToUI = (chatContainer, role, content, imageBase64 = null, isS
   messageDiv.appendChild(roleDiv);
   messageDiv.appendChild(contentDiv);
   
-  // 用户消息的操作按钮
+  // Operation buttons for user messages
   if (role === 'user' && !isStreaming) {
     const buttonContainer = document.createElement('div');
     buttonContainer.className = 'message-buttons';
     
-    // 编辑按钮
+    // Edit button
     const editButton = document.createElement('button');
     editButton.className = 'btn-base message-action-btn';
     editButton.innerHTML = '<i class="material-icons">edit</i>';
     editButton.title = 'Edit Message';
     editButton.onclick = () => editMessage(messageDiv, (messageId, newContent) => {
-      // 修改DOM
+      // Modify DOM
       const contentDiv = messageDiv.querySelector('.message-content');
       contentDiv.setAttribute('data-raw-content', newContent);
       // For user messages, preserve line breaks by using textContent
@@ -115,38 +115,38 @@ const appendMessageToUI = (chatContainer, role, content, imageBase64 = null, isS
       }
     });
     
-    // 复制文本按钮
+    // Copy text button
     const copyButton = document.createElement('button');
     copyButton.className = 'btn-base message-action-btn';
     copyButton.innerHTML = '<i class="material-icons">content_copy</i>';
     copyButton.title = 'Copy Text';
     copyButton.onclick = () => copyMessageText(content);
     
-    // 复制markdown按钮
+    // Copy markdown button
     const copyMarkdownButton = document.createElement('button');
     copyMarkdownButton.className = 'btn-base message-action-btn';
     copyMarkdownButton.innerHTML = '<i class="material-icons">code</i>';
     copyMarkdownButton.title = 'Copy Markdown';
     copyMarkdownButton.onclick = () => copyMessageMarkdown(content);
     
-    // 重试按钮
+    // Retry button
     const retryButton = document.createElement('button');
     retryButton.className = 'btn-base message-action-btn';
     retryButton.innerHTML = '<i class="material-icons">refresh</i>';
     retryButton.title = 'Retry';
     retryButton.onclick = () => retryMessage(messageDiv, (messageId, messageContent) => {
-      // 简单地移除所有后续消息
+      // Simply remove all subsequent messages
       const allMessages = Array.from(chatContainer.querySelectorAll('.chat-message'));
       const messageElementIndex = allMessages.findIndex(el => el.id === messageDiv.id);
       
       if (messageElementIndex !== -1) {
-        // 移除后续消息
+        // Remove subsequent messages
         for (let i = allMessages.length - 1; i > messageElementIndex; i--) {
           allMessages[i].remove();
         }
       }
       
-      // 添加新的助手占位符消息
+      // Add new assistant placeholder message
       appendMessageToUI(
         chatContainer,
         'assistant',
@@ -155,29 +155,29 @@ const appendMessageToUI = (chatContainer, role, content, imageBase64 = null, isS
         true
       );
       
-      // 滚动到底部
+      // Scroll to bottom
       chatContainer.scrollTop = chatContainer.scrollHeight;
     });
     
     const buttons = [editButton, retryButton, copyButton, copyMarkdownButton];
     
-    // 动态布局按钮
+    // Dynamic button layout
     layoutMessageButtons(buttonContainer, buttons, messageDiv);
     messageDiv.appendChild(buttonContainer);
   }
-  // 助手消息的操作按钮（非流式传输）
+  // Operation buttons for assistant messages (non-streaming)
   else if (role === 'assistant' && !isStreaming) {
     const buttonContainer = document.createElement('div');
     buttonContainer.className = 'message-buttons';
     
-    // 复制文本按钮
+    // Copy text button
     const copyTextButton = document.createElement('button');
     copyTextButton.className = 'btn-base message-action-btn';
     copyTextButton.innerHTML = '<i class="material-icons">content_copy</i>';
     copyTextButton.title = 'Copy Text';
     copyTextButton.onclick = () => copyMessageText(content);
     
-    // 复制markdown按钮
+    // Copy markdown button
     const copyMarkdownButton = document.createElement('button');
     copyMarkdownButton.className = 'btn-base message-action-btn';
     copyMarkdownButton.innerHTML = '<i class="material-icons">code</i>';
@@ -186,18 +186,18 @@ const appendMessageToUI = (chatContainer, role, content, imageBase64 = null, isS
     
     const buttons = [copyTextButton, copyMarkdownButton];
     
-    // 动态布局按钮
+    // Dynamic button layout
     layoutMessageButtons(buttonContainer, buttons, messageDiv);
     messageDiv.appendChild(buttonContainer);
   }
   
-  // 添加到聊天容器
+  // Add to chat container
   chatContainer.appendChild(messageDiv);
   
-  // 滚动到底部
+  // Scroll to bottom
   chatContainer.scrollTop = chatContainer.scrollHeight;
   
-  // 显示图片(如果有)
+  // Display image (if any)
   if (imageBase64 && !isStreaming) {
     const imageContainer = document.createElement('div');
     imageContainer.className = 'message-image-container';
@@ -207,7 +207,7 @@ const appendMessageToUI = (chatContainer, role, content, imageBase64 = null, isS
     image.alt = 'Attached image';
     imageContainer.appendChild(image);
     
-    // 在内容后面添加图片
+    // Add image after content
     contentDiv.appendChild(imageContainer);
   }
   
@@ -215,74 +215,74 @@ const appendMessageToUI = (chatContainer, role, content, imageBase64 = null, isS
 };
 
 /**
- * 处理流式块响应
- * @param {HTMLElement} chatContainer - 聊天容器元素
- * @param {string} chunk - 接收到的文本块
+ * Handle streaming chunk response
+ * @param {HTMLElement} chatContainer - Chat container element
+ * @param {string} chunk - Received text chunk
  */
 const handleStreamChunk = (chatContainer, chunk) => {
-  // 查找当前正在流式传输的消息
+  // Find currently streaming message
   const streamingMessageContainer = chatContainer.querySelector('[data-streaming="true"]');
   
   if (streamingMessageContainer) {
     const streamingMessageContentDiv = streamingMessageContainer.querySelector('.message-content');
     if (!streamingMessageContentDiv) return;
 
-    // 移除spinner(如果存在，应该只在第一个块上)
+    // Remove spinner (if exists, should only be on first chunk)
     const spinner = streamingMessageContentDiv.querySelector('.spinner');
     if (spinner) {
       spinner.remove();
     }
     
-    // 将新块附加到缓冲区
+    // Append new chunk to buffer
     let currentBuffer = streamingMessageContainer.dataset.markdownBuffer || '';
     currentBuffer += chunk;
     streamingMessageContainer.dataset.markdownBuffer = currentBuffer;
     
-    // 保存原始内容
+    // Save original content
     streamingMessageContentDiv.setAttribute('data-raw-content', currentBuffer);
     
-    // 检测是否包含markdown元素来决定如何显示内容
+    // Detect if content contains markdown elements to decide how to display
     const containsMarkdown = hasMarkdownElements(currentBuffer);
     
     try {
       if (containsMarkdown) {
-        // 如果包含markdown，尝试解析
+        // If contains markdown, try to parse it
         streamingMessageContentDiv.innerHTML = window.marked.parse(currentBuffer);
       } else {
-        // 如果不包含markdown，直接显示文本并保留换行
+        // If no markdown, display text and preserve line breaks
         streamingMessageContentDiv.textContent = currentBuffer;
         streamingMessageContentDiv.classList.add('no-markdown');
       }
     } catch (error) {
       logger.error('Error parsing markdown during stream:', error);
-      // 回退：以文本形式显示
+      // Fallback: display text
       streamingMessageContentDiv.textContent = currentBuffer;
       streamingMessageContentDiv.classList.add('no-markdown');
     }
     
-    // 滚动到底部
+    // Scroll to bottom
     chatContainer.scrollTop = chatContainer.scrollHeight;
   }
 };
 
 /**
- * 处理流式传输结束
- * @param {HTMLElement} chatContainer - 聊天容器元素
- * @param {string} fullResponse - 完整响应文本
- * @param {Function} onComplete - 完成后的回调函数
+ * Handle streaming transmission end
+ * @param {HTMLElement} chatContainer - Chat container element
+ * @param {string} fullResponse - Full response text
+ * @param {Function} onComplete - Callback function after completion
  */
 const handleStreamEnd = (chatContainer, fullResponse, onComplete) => {
   logger.info('[handleStreamEnd] Received fullResponse:', fullResponse ? fullResponse.substring(0, 100) + '...' : 'empty_or_null');
-  // 查找正在流式传输的消息
+  // Find currently streaming message
   const streamingMessageContainer = chatContainer.querySelector('[data-streaming="true"]');
   
   if (streamingMessageContainer) {
     logger.info('[handleStreamEnd] Found streamingMessageContainer:', streamingMessageContainer);
-    // 用完整响应更新内容
+    // Use full response to update content
     const contentDiv = streamingMessageContainer.querySelector('.message-content');
     if (!contentDiv) {
       logger.error('[handleStreamEnd] streamingMessageContainer found, but .message-content child is missing!');
-      // 尝试清除streaming属性以防止多个卡住的加载器
+      // Try to clear streaming attribute to prevent multiple stuck loaders
       streamingMessageContainer.removeAttribute('data-streaming');
       return;
     }
@@ -292,7 +292,7 @@ const handleStreamEnd = (chatContainer, fullResponse, onComplete) => {
     const containsMarkdown = hasMarkdownElements(fullResponse);
     
     try {
-      // 保存原始内容
+      // Save original content
       contentDiv.setAttribute('data-raw-content', fullResponse);
       
       if (containsMarkdown) {
@@ -307,27 +307,27 @@ const handleStreamEnd = (chatContainer, fullResponse, onComplete) => {
       }
     } catch (markdownError) {
       logger.error('[handleStreamEnd] Error parsing Markdown:', markdownError);
-      contentDiv.textContent = fullResponse; // 回退到纯文本
+      contentDiv.textContent = fullResponse; // Fallback to plain text
       contentDiv.classList.add('no-markdown'); // Add class for preserving line breaks
       logger.info('[handleStreamEnd] Applied fullResponse as plain text due to Markdown error.');
     }
         
-    // 移除streaming标志
+    // Remove streaming flag
     streamingMessageContainer.removeAttribute('data-streaming');
     logger.info('[handleStreamEnd] Removed data-streaming attribute.');
     
-    // 为助手消息添加操作按钮
+    // Add operation buttons for assistant messages
     const buttonContainer = document.createElement('div');
     buttonContainer.className = 'message-buttons';
     
-    // 复制文本按钮
+    // Copy text button
     const copyTextButton = document.createElement('button');
     copyTextButton.className = 'btn-base message-action-btn';
     copyTextButton.innerHTML = '<i class="material-icons">content_copy</i>';
     copyTextButton.title = 'Copy Text';
     copyTextButton.onclick = () => copyMessageText(fullResponse);
     
-    // 复制markdown按钮
+    // Copy markdown button
     const copyMarkdownButton = document.createElement('button');
     copyMarkdownButton.className = 'btn-base message-action-btn';
     copyMarkdownButton.innerHTML = '<i class="material-icons">code</i>';
@@ -336,24 +336,24 @@ const handleStreamEnd = (chatContainer, fullResponse, onComplete) => {
     
     const buttons = [copyTextButton, copyMarkdownButton];
     
-    // 动态布局按钮
+    // Dynamic button layout
     layoutMessageButtons(buttonContainer, buttons, streamingMessageContainer);
     
-    // 确保按钮添加到正确位置
+    // Ensure buttons are added to correct position
     streamingMessageContainer.appendChild(buttonContainer);
     logger.info('[handleStreamEnd] Action buttons added.');
     
-    // 滚动到底部
+    // Scroll to bottom
     chatContainer.scrollTop = chatContainer.scrollHeight;
     logger.info('[handleStreamEnd] Scrolled to bottom.');
     
-    // 调用完成回调
+    // Call completion callback
     if (typeof onComplete === 'function') {
       onComplete(fullResponse);
     }
   } else {
     logger.warn('[handleStreamEnd] streamingMessageContainer not found! UI might be stuck or already updated.');
-    // 即使没有找到streaming消息容器也调用完成回调
+    // Even if no streaming message container is found, call completion callback
     if (typeof onComplete === 'function') {
       onComplete(fullResponse);
     }
@@ -361,16 +361,16 @@ const handleStreamEnd = (chatContainer, fullResponse, onComplete) => {
 };
 
 /**
- * 处理LLM错误
- * @param {HTMLElement} chatContainer - 聊天容器元素
- * @param {string|Error} error - 错误信息
- * @param {HTMLElement} streamingMessageElement - 可选的streaming消息元素
- * @param {Function} onComplete - 完成后的回调函数
+ * Handle LLM error
+ * @param {HTMLElement} chatContainer - Chat container element
+ * @param {string|Error} error - Error information
+ * @param {HTMLElement} streamingMessageElement - Optional streaming message element
+ * @param {Function} onComplete - Callback function after completion
  */
 const handleLlmError = (chatContainer, error, streamingMessageElement = null, onComplete = null) => {
   logger.error('LLM Error:', error);
   
-  // 尝试查找streaming消息(如果没有传递)
+  // Try to find streaming message (if not passed)
   const messageElement = streamingMessageElement || chatContainer.querySelector('[data-streaming="true"]');
   
   if (messageElement) {
@@ -378,10 +378,10 @@ const handleLlmError = (chatContainer, error, streamingMessageElement = null, on
     if (contentDiv) {
       contentDiv.innerHTML = `<span style="color: var(--error-color);">${typeof error === 'string' ? error : 'An unexpected error occurred with the AI.'}</span>`;
     }
-    messageElement.removeAttribute('data-streaming'); // 确保移除streaming标志
+    messageElement.removeAttribute('data-streaming'); // Ensure remove streaming flag
   } else {
-    // 如果没有streaming消息(例如，错误发生在创建之前或已处理)，
-    // 添加一个新的错误消息。
+    // If no streaming message (e.g., error occurred before creation or already handled)
+    // Add new error message
     appendMessageToUI(
       chatContainer,
       'assistant', 
@@ -389,15 +389,15 @@ const handleLlmError = (chatContainer, error, streamingMessageElement = null, on
     );
   }
   
-  // 调用完成回调
+  // Call completion callback
   if (typeof onComplete === 'function') {
     onComplete(error);
   }
 };
 
 /**
- * 复制消息文本
- * @param {string} content - 消息内容
+ * Copy message text
+ * @param {string} content - Message content
  */
 const copyMessageText = (content) => {
   const tempDiv = document.createElement('div');
@@ -410,8 +410,8 @@ const copyMessageText = (content) => {
 };
 
 /**
- * 复制消息Markdown
- * @param {string} content - 消息内容
+ * Copy message Markdown
+ * @param {string} content - Message content
  */
 const copyMessageMarkdown = (content) => {
   navigator.clipboard.writeText(content)
@@ -423,19 +423,19 @@ const copyMessageMarkdown = (content) => {
 };
 
 /**
- * 在聊天界面中显示聊天历史
- * @param {HTMLElement} chatContainer - 聊天容器元素
- * @param {Array} history - 聊天历史数组
+ * Display chat history in chat UI
+ * @param {HTMLElement} chatContainer - Chat container element
+ * @param {Array} history - Chat history array
  */
 const displayChatHistory = (chatContainer, history) => {
   displayChatHistoryFromModule(chatContainer, history, appendMessageToUI);
 };
 
 /**
- * 导出会话为Markdown
- * @param {string} currentUrl - 当前页面URL
- * @param {string} extractedContent - 提取的内容
- * @param {Array} chatHistory - 聊天历史
+ * Export conversation as Markdown
+ * @param {string} currentUrl - Current page URL
+ * @param {string} extractedContent - Extracted content
+ * @param {Array} chatHistory - Chat history
  */
 const exportConversation = (currentUrl, extractedContent, chatHistory) => {
   if (chatHistory.length === 0) {
@@ -452,7 +452,7 @@ const exportConversation = (currentUrl, extractedContent, chatHistory) => {
     markdownContent += `${message.content}\n\n`;
   });
   
-  // 创建blob并下载
+  // Create blob and download
   const blob = new Blob([markdownContent], { type: 'text/markdown' });
   const url = URL.createObjectURL(blob);
   
@@ -465,16 +465,16 @@ const exportConversation = (currentUrl, extractedContent, chatHistory) => {
 };
 
 /**
- * 动态布局消息按钮，根据消息高度和按钮数量选择最佳布局
- * @param {HTMLElement} container - 按钮容器
- * @param {HTMLElement[]} buttons - 按钮数组
- * @param {HTMLElement} messageElement - 消息元素，用于获取高度
+ * Dynamic button layout, choose best layout based on message height and button count
+ * @param {HTMLElement} container - Button container
+ * @param {HTMLElement[]} buttons - Button array
+ * @param {HTMLElement} messageElement - Message element, used to get height
  */
 const layoutMessageButtons = (container, buttons, messageElement = null) => {
   const buttonCount = buttons.length;
   
   function applyLayout() {
-    // 清空容器
+    // Clear container
     container.innerHTML = '';
     
     let messageHeight = 0;
@@ -484,9 +484,9 @@ const layoutMessageButtons = (container, buttons, messageElement = null) => {
       messageHeight = messageElement.offsetHeight;
     }
     
-    // 根据消息高度和按钮数量决定布局
+    // Decide layout based on message height and button count
     if (messageElement && messageHeight > 75) {
-      // 消息高度足够时，优先使用单列布局
+      // Use single column layout if message height is sufficient
       container.className = 'message-buttons layout-column';
       layoutType = 'column';
       buttons.forEach(button => container.appendChild(button));
@@ -513,33 +513,33 @@ const layoutMessageButtons = (container, buttons, messageElement = null) => {
     }
 
     } else if (buttonCount <= 4) {
-      // 单行布局
+      // Single row layout
       container.className = 'message-buttons layout-row';
       layoutType = 'row';
       buttons.forEach(button => container.appendChild(button));
     } else {
-      // 5个及以上按钮：单列布局
+      // 5 or more buttons: Single column layout
       container.className = 'message-buttons layout-column';
       layoutType = 'column';
       buttons.forEach(button => container.appendChild(button));
     }
     
-    // 为消息容器添加对应的布局类名，以便CSS调整消息内容宽度
+    // Add corresponding layout class name to message container for CSS adjustment message content width
     if (messageElement && layoutType) {
-      // 移除之前的布局类名
+      // Remove previous layout class name
       messageElement.classList.remove('buttons-layout-row', 'buttons-layout-2rows', 'buttons-layout-column');
-      // 添加新的布局类名
+      // Add new layout class name
       messageElement.classList.add(`buttons-layout-${layoutType}`);
       logger.debug(`Applied layout class: buttons-layout-${layoutType} to message ${messageElement.id}`);
     }
   }
   
-  // 先应用基于按钮数量的默认布局
+  // First apply default layout based on button count
   applyLayout();
   
-  // 如果传入了消息元素，在DOM渲染完成后重新检查高度并调整布局
+  // If message element is passed, re-check height and adjust layout after DOM rendering is complete
   if (messageElement) {
-    // 使用 requestAnimationFrame 确保DOM已经渲染完成
+    // Use requestAnimationFrame to ensure DOM has finished rendering
     requestAnimationFrame(() => {
       applyLayout();
     });
@@ -547,8 +547,8 @@ const layoutMessageButtons = (container, buttons, messageElement = null) => {
 };
 
 /**
- * 检查并修复现有消息的布局类名
- * @param {HTMLElement} chatContainer - 聊天容器
+ * Check and fix existing message layout class names
+ * @param {HTMLElement} chatContainer - Chat container
  */
 const fixExistingMessageLayouts = (chatContainer) => {
   if (!chatContainer) return;
@@ -559,7 +559,7 @@ const fixExistingMessageLayouts = (chatContainer) => {
     if (buttonContainer) {
       const buttons = Array.from(buttonContainer.querySelectorAll('.message-action-btn'));
       if (buttons.length > 0) {
-        // 重新应用布局
+        // Re-apply layout
         layoutMessageButtons(buttonContainer, buttons, messageElement);
         logger.debug(`Fixed layout for message ${messageElement.id}`);
       }

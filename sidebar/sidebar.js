@@ -1,9 +1,9 @@
 /**
- * sidebar.js - Page Bot侧边栏主入口
- * 整合所有模块，管理应用逻辑流程
+ * sidebar.js - Main entry point for Page Bot sidebar
+ * Integrates all modules and manages application logic flow
  */
 
-// 导入所有模块
+// Import all modules
 import { createLogger, isRestrictedPage, showCopyToast } from './modules/utils.js';
 import * as StateManager from './modules/state-manager.js';
 import * as UIManager from './modules/ui-manager.js';
@@ -16,82 +16,82 @@ import * as QuickInputs from './components/quick-inputs.js';
 import * as ChatMessage from './components/chat-message.js';
 import * as ChatHistory from './modules/chat-history.js';
 
-// 创建logger
+// Create logger
 const logger = createLogger('Sidebar');
 
-// 全局工具函数，供其他模块使用
+// Global utility functions for other modules
 window.showCopyToast = showCopyToast;
 window.StateManager = StateManager;
 window.MessageHandler = MessageHandler;
 
-// DOM元素加载完成后初始化
+// Initialize when DOM elements are loaded
 document.addEventListener('DOMContentLoaded', async () => {
   logger.info('Side panel loaded');
   
-  // 初始化UI元素引用
+  // Initialize UI element references
   const elements = UIManager.initElements();
   
-  // 应用配置的面板尺寸
+  // Apply configured panel size
   const config = await StateManager.getConfig();
   ResizeHandler.applyPanelSize(config);
   
-  // 重置内容区域高度为配置默认值
+  // Reset content section height to configured default
   await ResizeHandler.resetContentSectionHeight(elements.contentSection, config);
   
-  // 加载当前页面数据
+  // Load current page data
   await loadCurrentPageData();
   
-  // 加载快速输入按钮
+  // Load quick input buttons
   loadQuickInputs();
   
-  // 设置事件监听器
+  // Set up event listeners
   setupEventListeners();
   
-  // 设置消息按钮跟随滚动的效果
+  // Set up message buttons scroll effect
   setupMessageButtonsScroll();
   
-  // 设置初始按钮状态
+  // Set initial button state
   elements.includePageContentBtn.setAttribute('data-enabled', StateManager.getStateItem('includePageContent') ? 'true' : 'false');
   
-  // 初始化图标布局
+  // Initialize icon layout
   UIManager.updateIconsLayout(elements.userInput.offsetHeight);
   
-  // 添加默认布局类
+  // Add default layout class
   elements.buttonGroup.classList.add('layout-row');
   
   logger.info('Sidebar initialization completed');
 });
 
 /**
- * 加载当前页面数据
+ * Load current page data
  */
 async function loadCurrentPageData() {
-  // 获取当前标签页URL
+  // Get current tab URL
   const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
   if (tabs.length > 0) {
     const url = tabs[0].url;
     StateManager.updateStateItem('currentUrl', url);
     logger.info('Current URL:', url);
     
-    // 检查是否为受限页面
+    // Check if it's a restricted page
     if (isRestrictedPage(url)) {
       UIManager.hideLoading();
       UIManager.showRestrictedPageMessage();
       return;
     }
     
-    // 显示加载状态
+    // Show loading status
     UIManager.showLoading('Loading page data...');
     
-    // 从后台脚本加载页面数据
+    // Load page data from background script
     try {
       const response = await MessageHandler.getPageData(url);
       
       if (response.success) {
-        // 数据加载成功
+        // Data loaded successfully
         await handlePageDataLoaded(response.data);
       } else {
-        // 加载数据出错
+        // Load data error
         UIManager.showExtractionError(response.error);
       }
     } catch (error) {
@@ -104,20 +104,20 @@ async function loadCurrentPageData() {
 }
 
 /**
- * 处理页面数据加载完成
- * @param {Object} data - 页面数据
+ * Handle page data loaded
+ * @param {Object} data - Page data
  */
 async function handlePageDataLoaded(data) {
   const elements = UIManager.getAllElements();
   UIManager.hideLoading();
   
-  // 重新启用按钮，以防它们在受限页面上被禁用
+  // Re-enable buttons in case they were disabled on restricted page
   elements.jinaExtractBtn.disabled = false;
   elements.readabilityExtractBtn.disabled = false;
   elements.userInput.disabled = false;
   elements.sendBtn.disabled = false;
   
-  // 更新提取的内容并显示
+  // Update extracted content and display
   if (data && data.content) {
     StateManager.updateStateItem('extractedContent', data.content);
     await UIManager.displayExtractedContent(data.content);
@@ -130,19 +130,19 @@ async function handlePageDataLoaded(data) {
     elements.copyContentBtn.disabled = true;
   }
   
-  // 根据实际使用的方法更新提取方法UI
+  // Update extraction method UI based on actual method used
   if (data && data.extractionMethod) {
     StateManager.updateStateItem('currentExtractionMethod', data.extractionMethod);
     UIManager.updateExtractionButtonUI(data.extractionMethod);
     logger.info(`Content displayed using method: ${data.extractionMethod}`);
   }
 
-  // 使用服务工作进程提供的聊天历史
+  // Use service worker provided chat history
   if (data && data.chatHistory) {
     logger.info(`Received chat history with ${data.chatHistory.length} messages from service worker`);
     ChatManager.displayChatHistory(elements.chatContainer, data.chatHistory);
     
-    // 修复现有消息的布局类名
+    // Fix existing message layouts
     setTimeout(() => {
       ChatManager.fixExistingMessageLayouts(elements.chatContainer);
     }, 100);
@@ -151,27 +151,27 @@ async function handlePageDataLoaded(data) {
     elements.chatContainer.innerHTML = '';
   }
   
-  // 根据成功与否启用或禁用重试按钮
+  // Enable or disable retry button based on success or failure
   elements.retryExtractBtn.disabled = !data.content;
   if (data.content) {
     elements.retryExtractBtn.classList.remove('disabled');
     elements.retryExtractBtn.classList.add('visible');
   } else {
     elements.retryExtractBtn.classList.add('disabled');
-    // 保持可见以允许重试
+    // Keep visible to allow retry
   }
 }
 
 /**
- * 设置所有事件监听器
+ * Set up all event listeners
  */
 function setupEventListeners() {
   const elements = UIManager.getAllElements();
   
-  // 发送消息按钮
+  // Send message button
   elements.sendBtn.addEventListener('click', sendUserMessage);
   
-  // 输入框中的Enter键发送消息
+  // Send message when Enter key is pressed in input field
   elements.userInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -179,20 +179,20 @@ function setupEventListeners() {
     }
   });
   
-  // 导出对话
+  // Export conversation
   elements.exportBtn.addEventListener('click', exportConversation);
   
-  // 清除对话和上下文
+  // Clear conversation and context
   elements.clearBtn.addEventListener('click', clearConversationAndContext);
   
-  // 提取方法按钮
+  // Extraction method buttons
   elements.jinaExtractBtn.addEventListener('click', () => switchExtractionMethod('jina'));
   elements.readabilityExtractBtn.addEventListener('click', () => switchExtractionMethod('readability'));
   
-  // 包含页面内容按钮
+  // Include page content button
   elements.includePageContentBtn.addEventListener('click', toggleIncludePageContent);
   
-  // 初始化图片处理
+  // Initialize image processing
   ImageHandler.initImageHandler(
     elements.userInput,
     elements.imagePreviewContainer,
@@ -200,12 +200,12 @@ function setupEventListeners() {
     elements.removeImageBtn
   );
   
-  // 复制提取的内容
+  // Copy extracted content
   elements.copyContentBtn.addEventListener('click', copyExtractedContent);
   
-  // 重试提取
+  // Retry extraction
   elements.retryExtractBtn.addEventListener('click', () => {
-    // 检查按钮是否禁用
+    // Check if button is disabled
     if (elements.retryExtractBtn.disabled || elements.retryExtractBtn.classList.contains('disabled')) {
       return;
     }
@@ -213,26 +213,26 @@ function setupEventListeners() {
     reExtractContent(StateManager.getStateItem('currentExtractionMethod'));
   });
   
-  // 初始化大小调整处理
+  // Initialize content resize processing
   ResizeHandler.initContentResize(
     elements.contentSection,
     elements.resizeHandle,
     (height) => ResizeHandler.saveContentSectionHeight(height)
   );
   
-  // 输入框大小调整处理
+  // Input field resize processing
   ResizeHandler.initInputResize(
     elements.userInput,
     elements.inputResizeHandle,
     (height) => UIManager.updateIconsLayout(height)
   );
   
-  // 设置消息监听器
+  // Set message listeners
   setupMessageListeners();
 }
 
 /**
- * 设置消息监听器
+ * Set message listeners
  */
 function setupMessageListeners() {
   MessageHandler.setupMessageListeners({
@@ -247,10 +247,10 @@ function setupMessageListeners() {
         UIManager.getElement('chatContainer'),
         fullResponse,
         (response) => {
-          // 从DOM获取更新后的对话历史
+          // Get updated dialog history from DOM
           const chatHistory = ChatHistory.getChatHistoryFromDOM(UIManager.getElement('chatContainer'));
           
-          // 保存更新后的聊天历史
+          // Save updated chat history
           chrome.runtime.sendMessage({
             type: 'SAVE_CHAT_HISTORY',
             url: StateManager.getStateItem('currentUrl'),
@@ -261,7 +261,7 @@ function setupMessageListeners() {
             logger.error('Failed to save chat history after adding assistant response:', error);
           });
           
-          // 重新启用发送按钮
+          // Re-enable send button
           UIManager.getElement('sendBtn').disabled = false;
         }
       );
@@ -273,14 +273,14 @@ function setupMessageListeners() {
         error,
         null,
         () => {
-          // 重新启用发送按钮
+          // Re-enable send button
           UIManager.getElement('sendBtn').disabled = false;
         }
       );
     },
     
     onTabChanged: (url) => {
-      // 标签页切换，如果URL不同则重新加载数据
+      // Tab changed, if URL is different, reload data
       if (url !== StateManager.getStateItem('currentUrl')) {
         logger.info(`Tab changed. New URL: ${url}`);
         StateManager.updateStateItem('currentUrl', url);
@@ -289,7 +289,7 @@ function setupMessageListeners() {
     },
     
     onAutoLoadContent: (url, data) => {
-      // 自动加载新URL的缓存内容
+      // Auto-load cached content for new URL
       if (url !== StateManager.getStateItem('currentUrl')) {
         logger.info(`Auto-loading cached content for URL: ${url}`);
         StateManager.updateStateItem('currentUrl', url);
@@ -298,27 +298,27 @@ function setupMessageListeners() {
     },
     
     onAutoExtractContent: (url, extractionMethod) => {
-      // 自动提取新URL的内容
+      // Auto-extract content for new URL
       if (url !== StateManager.getStateItem('currentUrl')) {
         logger.info(`Auto-extracting content for URL: ${url}`);
         StateManager.updateStateItem('currentUrl', url);
         StateManager.updateStateItem('currentExtractionMethod', extractionMethod);
         
-        // 检查是否为受限页面
+        // Check if it's a restricted page
         if (isRestrictedPage(url)) {
           UIManager.hideLoading();
           UIManager.showRestrictedPageMessage();
-    return;
-  }
-  
-        // 显示加载并提取内容
+          return;
+        }
+        
+        // Show loading and extract content
         UIManager.showLoading('Extracting content...');
         loadCurrentPageData();
       }
     },
     
     onTabUpdated: (url) => {
-      // 标签页更新的旧式回退
+      // Old-style fallback for tab update
       if (url !== StateManager.getStateItem('currentUrl')) {
         logger.info(`Tab updated. New URL: ${url}`);
         StateManager.updateStateItem('currentUrl', url);
@@ -329,7 +329,7 @@ function setupMessageListeners() {
 }
 
 /**
- * 发送用户消息
+ * Send user message
  */
 async function sendUserMessage() {
   const elements = UIManager.getAllElements();
@@ -342,20 +342,20 @@ async function sendUserMessage() {
     return;
   }
 
-  // 清除输入并禁用发送按钮
+  // Clear input and disable send button
   elements.userInput.value = '';
   elements.sendBtn.disabled = true;
   
-  // 创建消息时间戳，用于DOM和消息对象
+  // Create message timestamp for DOM and message object
   const messageTimestamp = Date.now();
   
-  // 乐观地将用户消息添加到UI，使用相同的时间戳
+  // Optimistically add user message to UI, using same timestamp
   ChatManager.appendMessageToUI(elements.chatContainer, 'user', userText, imageBase64, false, messageTimestamp);
   
-  // 从DOM获取对话历史
+  // Get dialog history from DOM
   const chatHistory = ChatHistory.getChatHistoryFromDOM(elements.chatContainer);
   
-  // 将当前对话历史立即保存到存储
+  // Immediately save current dialog history to storage
   try {
     await chrome.runtime.sendMessage({
       type: 'SAVE_CHAT_HISTORY',
@@ -367,12 +367,12 @@ async function sendUserMessage() {
     logger.error('Failed to save chat history after adding user message:', error);
   }
   
-  // 为服务工作进程准备有效载荷
+  // Prepare payload for service worker
   let systemPromptTemplateForPayload = '';
-  let pageContentForPayload = StateManager.getStateItem('extractedContent'); // 始终传递extractedContent
+  let pageContentForPayload = StateManager.getStateItem('extractedContent'); // Always pass extractedContent
   const config = await StateManager.getConfig();
 
-  // 来自配置的默认系统提示(通常包含{CONTENT})
+  // Default system prompt from config (usually contains {CONTENT})
   systemPromptTemplateForPayload = config.systemPrompt;
 
   if (StateManager.getStateItem('includePageContent')) {
@@ -382,17 +382,17 @@ async function sendUserMessage() {
     logger.info('Not including page content in the message. Only using for {CONTENT} replacement.');
   }
   
-  // 在聊天中显示加载指示器
-  // 确保在发送消息之前调用此方法，以确保UI及时更新
+  // Show loading indicator in chat
+  // Ensure this method is called before sending message to ensure UI is updated in time
   const loadingMsgId = ChatManager.appendMessageToUI(elements.chatContainer, 'assistant', '<div class="spinner"></div>', null, true);
   
-  // 如果附加了图片，发送后移除
+  // If image was attached, send and remove
   if (imageBase64) {
     ImageHandler.removeAttachedImage(elements.imagePreviewContainer, elements.imagePreview);
   }
 
   try {
-    // 向后台脚本发送消息以进行LLM处理
+    // Send message to background script for LLM processing
     await MessageHandler.sendLlmMessage({
       messages: chatHistory,
       systemPromptTemplate: systemPromptTemplateForPayload,
@@ -408,7 +408,7 @@ async function sendUserMessage() {
       'Failed to send message to the AI. Check service worker logs.',
       loadingMsgId,
       () => {
-        // 如果发生错误，重新启用发送按钮
+        // If error occurs, re-enable send button
         elements.sendBtn.disabled = false;
       }
     );
@@ -416,23 +416,23 @@ async function sendUserMessage() {
 }
 
 /**
- * 处理快速输入点击
- * @param {string} displayText - 显示文本
- * @param {string} sendTextTemplate - 发送文本模板
+ * Handle quick input click
+ * @param {string} displayText - Display text
+ * @param {string} sendTextTemplate - Send text template
  */
 async function handleQuickInputClick(displayText, sendTextTemplate) {
   const elements = UIManager.getAllElements();
   
-  // 显示加载状态
+  // Show loading status
   elements.sendBtn.disabled = true;
   
-  // 创建消息时间戳，用于DOM和消息对象
+  // Create message timestamp for DOM and message object
   const messageTimestamp = Date.now();
   
-  // 添加用户消息到UI，使用相同的时间戳
+  // Add user message to UI, using same timestamp
   ChatManager.appendMessageToUI(elements.chatContainer, 'user', displayText, null, false, messageTimestamp);
   
-  // 显示助手响应的加载指示器
+  // Show assistant response loading indicator
   const assistantLoadingMessage = ChatManager.appendMessageToUI(
     elements.chatContainer,
     'assistant',
@@ -441,10 +441,10 @@ async function handleQuickInputClick(displayText, sendTextTemplate) {
     true
   );
   
-  // 从DOM获取对话历史
+  // Get dialog history from DOM
   const chatHistory = ChatHistory.getChatHistoryFromDOM(elements.chatContainer);
   
-  // 将当前对话历史立即保存到存储
+  // Immediately save current dialog history to storage
   try {
     await chrome.runtime.sendMessage({
       type: 'SAVE_CHAT_HISTORY',
@@ -456,13 +456,13 @@ async function handleQuickInputClick(displayText, sendTextTemplate) {
     logger.error('Failed to save chat history after adding quick input message:', error);
   }
   
-  // 准备数据
+  // Prepare data
   const state = StateManager.getState();
   let systemPromptTemplateForPayload = '';
   let pageContentForPayload = state.extractedContent;
   const config = await StateManager.getConfig();
 
-  // 获取系统提示
+  // Get system prompt
   systemPromptTemplateForPayload = config.systemPrompt;
 
   if (state.includePageContent) {
@@ -473,7 +473,7 @@ async function handleQuickInputClick(displayText, sendTextTemplate) {
   }
 
   try {
-    // 向后台脚本发送消息以进行LLM处理
+    // Send message to background script for LLM processing
     await MessageHandler.sendLlmMessage({
       messages: chatHistory,
       systemPromptTemplate: systemPromptTemplateForPayload,
@@ -483,7 +483,7 @@ async function handleQuickInputClick(displayText, sendTextTemplate) {
     });
   } catch (error) {
     logger.error('Error sending quick message:', error);
-    // 将加载消息元素传递给handleLlmError，以便在发送失败时可以更新它
+    // Pass loading message element to handleLlmError for updating it in case of failure
     ChatManager.handleLlmError(
       elements.chatContainer,
       'Failed to send message to LLM',
@@ -496,7 +496,7 @@ async function handleQuickInputClick(displayText, sendTextTemplate) {
 }
 
 /**
- * 加载快速输入按钮
+ * Load quick input buttons
  */
 async function loadQuickInputs() {
   try {
@@ -516,39 +516,39 @@ async function loadQuickInputs() {
 }
 
 /**
- * 切换提取方法
- * @param {string} method - 提取方法
+ * Switch extraction method
+ * @param {string} method - Extraction method
  */
 function switchExtractionMethod(method) {
   const elements = UIManager.getAllElements();
   const state = StateManager.getState();
   
-  // 检查是否为受限页面
+  // Check if it's a restricted page
   if (isRestrictedPage(state.currentUrl)) {
     logger.info('Cannot switch extraction method on restricted page');
     return;
   }
   
-  // 更新活动按钮样式
+  // Update active button styles
   elements.jinaExtractBtn.classList.toggle('active', method === 'jina');
   elements.readabilityExtractBtn.classList.toggle('active', method === 'readability');
   
-  // 显示加载状态
+  // Show loading status
   UIManager.showLoading(`Switching to ${method === 'jina' ? 'Jina AI' : 'Readability'} extraction...`);
   
-  // 调用内容提取器切换方法
+  // Call content extractor switch method
   ContentExtractor.switchMethod(
     state.currentUrl,
     method,
     state.currentExtractionMethod,
-    // 成功回调
+    // Success callback
     (content, extractionMethod) => {
       StateManager.updateStateItem('extractedContent', content);
       StateManager.updateStateItem('currentExtractionMethod', extractionMethod);
       UIManager.displayExtractedContent(content);
       UIManager.hideLoading();
     },
-    // 错误回调
+    // Error callback
     (error) => {
       UIManager.showExtractionError(error);
     }
@@ -556,33 +556,33 @@ function switchExtractionMethod(method) {
 }
 
 /**
- * 重新提取内容
- * @param {string} method - 提取方法
+ * Re-extract content
+ * @param {string} method - Extraction method
  */
 function reExtractContent(method) {
   const state = StateManager.getState();
   
-  // 检查是否为受限页面
+  // Check if it's a restricted page
   if (isRestrictedPage(state.currentUrl)) {
     logger.info('Cannot re-extract content on restricted page');
     return;
   }
   
-  // 显示加载状态
+  // Show loading status
   UIManager.showLoading(`Re-extracting with ${method === 'jina' ? 'Jina AI' : 'Readability'}...`);
   
-  // 调用内容提取器重新提取方法
+  // Call content extractor re-extract method
   ContentExtractor.reExtract(
     state.currentUrl,
     method,
-    // 成功回调
+    // Success callback
     (content, extractionMethod) => {
       StateManager.updateStateItem('extractedContent', content);
       StateManager.updateStateItem('currentExtractionMethod', extractionMethod);
       UIManager.displayExtractedContent(content);
       UIManager.hideLoading();
     },
-    // 错误回调
+    // Error callback
     (error) => {
       UIManager.showExtractionError(error);
     }
@@ -590,12 +590,12 @@ function reExtractContent(method) {
 }
 
 /**
- * 复制提取的内容
+ * Copy extracted content
  */
 async function copyExtractedContent() {
   const elements = UIManager.getAllElements();
   
-  // 检查按钮是否禁用
+  // Check if button is disabled
   if (elements.copyContentBtn.disabled || elements.copyContentBtn.classList.contains('disabled')) {
     return;
   }
@@ -611,7 +611,7 @@ async function copyExtractedContent() {
 }
 
 /**
- * 切换是否包含页面内容
+ * Switch whether to include page content
  */
 function toggleIncludePageContent() {
   const includePageContent = StateManager.toggleIncludePageContent();
@@ -619,7 +619,7 @@ function toggleIncludePageContent() {
 }
 
 /**
- * 导出对话
+ * Export conversation
  */
 function exportConversation() {
   const state = StateManager.getState();
@@ -631,33 +631,33 @@ function exportConversation() {
 }
 
 /**
- * 清除对话和上下文
+ * Clear conversation and context
  */
 async function clearConversationAndContext() {
   const elements = UIManager.getAllElements();
   
-  // 清除UI
+  // Clear UI
   ChatHistory.clearChatHistory(elements.chatContainer);
   
-  // 从存储中清除(如果我们有URL)
+  // Clear from storage (if we have URL)
   await StateManager.clearUrlData(false, true);
   
   logger.info('Conversation cleared');
 }
 
 /**
- * 设置消息按钮跟随滚动的效果 - 完全重写
+ * Set up message buttons scroll effect - Completely rewritten
  */
 function setupMessageButtonsScroll() {
   const chatContainer = document.getElementById('chatContainer');
   if (!chatContainer) return;
 
-  // 跟踪当前悬停的消息和其按钮
+  // Track current hovered message and its buttons
   let currentHoveredMessage = null;
   let currentFloatingButtons = null;
   
   /**
-   * 清理浮动按钮状态
+   * Clear floating button state
    */
   function clearFloatingButtons() {
     if (currentFloatingButtons) {
@@ -672,33 +672,33 @@ function setupMessageButtonsScroll() {
   }
   
   /**
-   * 更新按钮位置
+   * Update button position
    */
   function updateButtonPosition(message, buttons) {
     const messageRect = message.getBoundingClientRect();
     const containerRect = chatContainer.getBoundingClientRect();
     
-    // 检查消息是否完全在可视区域内
+    // Check if message is fully visible in viewport
     const isFullyVisible = messageRect.top >= containerRect.top && 
                            messageRect.bottom <= containerRect.bottom;
     
     if (isFullyVisible) {
-      // 消息完全可见，使用常规定位
+      // Message is fully visible, use regular positioning
       buttons.classList.remove('floating');
       buttons.style.position = '';
       buttons.style.top = '';
       buttons.style.right = '';
       buttons.style.transform = '';
     } else {
-      // 消息被部分裁剪，使用浮动定位
+      // Message is partially clipped, use floating positioning
       buttons.classList.add('floating');
       
-      // 计算按钮在可视区域内的最佳位置
+      // Calculate best position for buttons in viewport
       const visibleTop = Math.max(messageRect.top, containerRect.top);
       const visibleBottom = Math.min(messageRect.bottom, containerRect.bottom);
       const visibleCenter = (visibleTop + visibleBottom) / 2;
       
-      // 设置浮动位置
+      // Set floating position
       buttons.style.position = 'fixed';
       buttons.style.top = `${visibleCenter}px`;
       buttons.style.right = `${window.innerWidth - containerRect.right + 12}px`;
@@ -706,12 +706,12 @@ function setupMessageButtonsScroll() {
     }
   }
   
-  // 使用事件委托处理鼠标进入消息
+  // Use event delegation to handle mouse entering message
   chatContainer.addEventListener('mouseover', function(event) {
     const message = event.target.closest('.chat-message');
     if (!message || message === currentHoveredMessage) return;
     
-    // 清理之前的状态
+    // Clear previous state
     clearFloatingButtons();
     
     const buttons = message.querySelector('.message-buttons');
@@ -720,30 +720,30 @@ function setupMessageButtonsScroll() {
     currentHoveredMessage = message;
     currentFloatingButtons = buttons;
     
-    // 立即更新按钮位置
+    // Immediately update button position
     updateButtonPosition(message, buttons);
   });
   
-  // 使用事件委托处理鼠标离开消息
+  // Use event delegation to handle mouse leaving message
   chatContainer.addEventListener('mouseout', function(event) {
     const message = event.target.closest('.chat-message');
     if (!message || message !== currentHoveredMessage) return;
     
-    // 检查鼠标是否真的离开了消息区域（而不是移动到子元素）
+    // Check if mouse really left message area (not moved to sub-element)
     const relatedTarget = event.relatedTarget;
     if (relatedTarget && message.contains(relatedTarget)) return;
     
     clearFloatingButtons();
   });
   
-  // 滚动时更新按钮位置
+  // Update button position on scroll
   chatContainer.addEventListener('scroll', function() {
     if (currentHoveredMessage && currentFloatingButtons) {
       updateButtonPosition(currentHoveredMessage, currentFloatingButtons);
     }
   });
   
-  // 窗口大小变化时更新位置
+  // Update position on window size change
   window.addEventListener('resize', function() {
     if (currentHoveredMessage && currentFloatingButtons) {
       updateButtonPosition(currentHoveredMessage, currentFloatingButtons);
