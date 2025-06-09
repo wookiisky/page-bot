@@ -80,6 +80,19 @@ async function loadCurrentPageData() {
       return;
     }
     
+    // Load page state first
+    try {
+      const pageState = await StateManager.loadPageState(url);
+      if (pageState) {
+        StateManager.applyPageState(pageState);
+        // Update UI to reflect loaded state
+        UIManager.updateIncludePageContentUI(StateManager.getStateItem('includePageContent'));
+        logger.info('Page state loaded and applied');
+      }
+    } catch (error) {
+      logger.warn('Failed to load page state, using defaults:', error);
+    }
+    
     // Show loading status
     UIManager.showLoading('Loading page data...');
     
@@ -288,16 +301,30 @@ function setupMessageListeners() {
       }
     },
     
-    onAutoLoadContent: (url, data) => {
+    onAutoLoadContent: async (url, data) => {
       // Auto-load cached content for new URL
       if (url !== StateManager.getStateItem('currentUrl')) {
         logger.info(`Auto-loading cached content for URL: ${url}`);
         StateManager.updateStateItem('currentUrl', url);
+        
+        // Load page state first
+        try {
+          const pageState = await StateManager.loadPageState(url);
+          if (pageState) {
+            StateManager.applyPageState(pageState);
+            // Update UI to reflect loaded state
+            UIManager.updateIncludePageContentUI(StateManager.getStateItem('includePageContent'));
+            logger.info('Page state loaded and applied for auto-loaded content');
+          }
+        } catch (error) {
+          logger.warn('Failed to load page state for auto-loaded content, using defaults:', error);
+        }
+        
         handlePageDataLoaded(data);
       }
     },
     
-    onAutoExtractContent: (url, extractionMethod) => {
+    onAutoExtractContent: async (url, extractionMethod) => {
       // Auto-extract content for new URL
       if (url !== StateManager.getStateItem('currentUrl')) {
         logger.info(`Auto-extracting content for URL: ${url}`);
@@ -309,6 +336,19 @@ function setupMessageListeners() {
           UIManager.hideLoading();
           UIManager.showRestrictedPageMessage();
           return;
+        }
+        
+        // Load page state first
+        try {
+          const pageState = await StateManager.loadPageState(url);
+          if (pageState) {
+            StateManager.applyPageState(pageState);
+            // Update UI to reflect loaded state
+            UIManager.updateIncludePageContentUI(StateManager.getStateItem('includePageContent'));
+            logger.info('Page state loaded and applied for auto-extract content');
+          }
+        } catch (error) {
+          logger.warn('Failed to load page state for auto-extract content, using defaults:', error);
         }
         
         // Show loading and extract content

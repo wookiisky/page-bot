@@ -24,6 +24,7 @@ importScripts('handlers/sendLlmMessageHandler.js');
 importScripts('handlers/clearUrlDataHandler.js');
 importScripts('handlers/configHandler.js');
 importScripts('handlers/saveChatHistoryHandler.js');
+importScripts('handlers/pageStateHandler.js');
 
 // Import event listener handlers
 importScripts('handlers/tabActivationHandler.js');
@@ -137,6 +138,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           return await handleSaveConfig(data, configManager, serviceLogger);
         case 'SAVE_CHAT_HISTORY':
           return await handleSaveChatHistory(data, serviceLogger, storage);
+        case 'SAVE_PAGE_STATE':
+          return await handleSavePageState(data, serviceLogger, storage);
+        case 'GET_PAGE_STATE':
+          return await handleGetPageState(data, serviceLogger, storage);
         default:
           return { type: 'UNKNOWN_MESSAGE', error: `Unknown message type: ${type}` };
       }

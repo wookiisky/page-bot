@@ -127,7 +127,95 @@ const clearUrlData = async (clearContent = false, clearChat = true) => {
 const toggleIncludePageContent = () => {
   state.includePageContent = !state.includePageContent;
   logger.info(`Page content inclusion ${state.includePageContent ? 'enabled' : 'disabled'}`);
+  
+  // Save page state to cache
+  savePageState();
+  
   return state.includePageContent;
+};
+
+/**
+ * 保存页面状态到缓存
+ * @returns {Promise<boolean>} 是否成功保存
+ */
+const savePageState = async () => {
+  try {
+    if (!state.currentUrl) {
+      logger.warn('No current URL, cannot save page state');
+      return false;
+    }
+    
+    const pageState = {
+      includePageContent: state.includePageContent,
+      lastUpdated: Date.now()
+    };
+    
+    const response = await chrome.runtime.sendMessage({
+      type: 'SAVE_PAGE_STATE',
+      url: state.currentUrl,
+      pageState: pageState
+    });
+    
+    if (response && response.type === 'PAGE_STATE_SAVED') {
+      logger.info('Page state saved successfully', pageState);
+      return true;
+    } else {
+      logger.error('Failed to save page state:', response);
+      return false;
+    }
+  } catch (error) {
+    logger.error('Error saving page state:', error);
+    return false;
+  }
+};
+
+/**
+ * 从缓存加载页面状态
+ * @param {string} url - 页面URL
+ * @returns {Promise<Object|null>} 页面状态对象或null
+ */
+const loadPageState = async (url) => {
+  try {
+    if (!url) {
+      logger.warn('No URL provided, cannot load page state');
+      return null;
+    }
+    
+    const response = await chrome.runtime.sendMessage({
+      type: 'GET_PAGE_STATE',
+      url: url
+    });
+    
+    if (response && response.type === 'PAGE_STATE_LOADED' && response.pageState) {
+      logger.info('Page state loaded successfully', response.pageState);
+      return response.pageState;
+    } else if (response && response.type === 'PAGE_STATE_LOADED') {
+      logger.info('No cached page state found for URL:', url);
+      return null;
+    } else {
+      logger.error('Failed to load page state:', response);
+      return null;
+    }
+  } catch (error) {
+    logger.error('Error loading page state:', error);
+    return null;
+  }
+};
+
+/**
+ * 应用页面状态到当前状态
+ * @param {Object} pageState - 页面状态对象
+ */
+const applyPageState = (pageState) => {
+  if (!pageState) {
+    logger.info('No page state to apply');
+    return;
+  }
+  
+  if (typeof pageState.includePageContent === 'boolean') {
+    state.includePageContent = pageState.includePageContent;
+    logger.info(`Applied includePageContent state: ${pageState.includePageContent}`);
+  }
 };
 
 export {
@@ -138,5 +226,8 @@ export {
   getConfig,
   saveChatHistory,
   clearUrlData,
-  toggleIncludePageContent
+  toggleIncludePageContent,
+  savePageState,
+  loadPageState,
+  applyPageState
 }; 

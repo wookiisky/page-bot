@@ -10,6 +10,7 @@ const storageLogger = logger.createModuleLogger('Storage');
 // Storage constants
 const DB_CONTENT_PREFIX = 'readBotContent_';
 const DB_CHAT_PREFIX = 'readBotChat_';
+const DB_PAGE_STATE_PREFIX = 'readBotPageState_';
 const MAX_ITEMS = 20;
 const RECENT_URLS_KEY = 'readBotRecentUrls';
 
@@ -187,7 +188,7 @@ storage.getRecentUrls = async function() {
 }
 
 // Clear data for a specific URL
-storage.clearUrlData = async function(url, clearContent = true, clearChat = true) {
+storage.clearUrlData = async function(url, clearContent = true, clearChat = true, clearPageState = false) {
   if (!url) {
     storageLogger.error('Cannot clear data: URL is empty');
     return false;
@@ -211,6 +212,12 @@ storage.clearUrlData = async function(url, clearContent = true, clearChat = true
       keysToRemove.push(chatKey);
     }
     
+    if (clearPageState) {
+      // Clear page state for this URL
+      const pageStateKey = getPageStateKeyFromUrl(url);
+      keysToRemove.push(pageStateKey);
+    }
+    
     if (keysToRemove.length > 0) {
       await chrome.storage.local.remove(keysToRemove);
     }
@@ -220,7 +227,7 @@ storage.clearUrlData = async function(url, clearContent = true, clearChat = true
     recentUrls = recentUrls.filter(item => normalizeUrl(item.url) !== normalizeUrl(url));
     await chrome.storage.local.set({ [RECENT_URLS_KEY]: recentUrls });
     
-    storageLogger.info('URL data cleared successfully', { url, clearedContent: clearContent, clearedChat: clearChat, keysRemoved: keysToRemove.length });
+    storageLogger.info('URL data cleared successfully', { url, clearedContent: clearContent, clearedChat: clearChat, clearedPageState: clearPageState, keysRemoved: keysToRemove.length });
     return true;
   } catch (error) {
     storageLogger.error('Error clearing URL data:', { url, error: error.message });
@@ -298,6 +305,60 @@ function getChatHistoryKeyFromUrl(url) {
   return `${DB_CHAT_PREFIX}${normalizeUrl(url)}`;
 }
 
+// Save page UI state for a URL
+storage.savePageState = async function(url, pageState) {
+  if (!url) {
+    storageLogger.error('Cannot save page state: URL is empty');
+    return false;
+  }
+  
+  try {
+    // Get normalized URL as key for page state
+    const key = getPageStateKeyFromUrl(url);
+    
+    // Save the page state
+    await chrome.storage.local.set({ [key]: pageState });
+    storageLogger.info('Page state saved successfully', { url, pageState });
+    
+    return true;
+  } catch (error) {
+    storageLogger.error('Error saving page state:', { url, error: error.message });
+    return false;
+  }
+};
+
+// Get page UI state for a URL
+storage.getPageState = async function(url) {
+  if (!url) {
+    storageLogger.error('Cannot get page state: URL is empty');
+    return null;
+  }
+  
+  try {
+    // Get normalized URL as key for page state
+    const key = getPageStateKeyFromUrl(url);
+    
+    // Get the page state
+    const result = await chrome.storage.local.get(key);
+    
+    if (result[key]) {
+      storageLogger.info('Found cached page state', { url, pageState: result[key] });
+      return result[key];
+    }
+    
+    return null;
+  } catch (error) {
+    storageLogger.error('Error getting page state:', { url, error: error.message });
+    return null;
+  }
+};
+
+// Get storage key for page state from URL
+function getPageStateKeyFromUrl(url) {
+  // Create a consistent key for page state storage (no method suffix)
+  return `${DB_PAGE_STATE_PREFIX}${normalizeUrl(url)}`;
+}
+
 // Clear all cached data
 storage.clearAllCachedData = async function() {
   try {
@@ -306,6 +367,7 @@ storage.clearAllCachedData = async function() {
     const keysToRemove = Object.keys(result).filter(key => 
       key.startsWith(DB_CONTENT_PREFIX) || 
       key.startsWith(DB_CHAT_PREFIX) || 
+      key.startsWith(DB_PAGE_STATE_PREFIX) ||
       key === RECENT_URLS_KEY
     );
     

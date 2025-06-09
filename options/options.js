@@ -94,6 +94,7 @@ class OptionsPage {
       // logger.debug('Retrieved items from chrome.storage.local:', JSON.stringify(items)); // Detailed log of all items
       let pageCacheCount = 0;
       let chatHistoryCount = 0;
+      let pageStateCount = 0;
       for (const key in items) {
         if (Object.prototype.hasOwnProperty.call(items, key)) { // Check if key is own property
           // logger.debug(`Processing key: ${key}`); // Log each key being processed
@@ -101,12 +102,14 @@ class OptionsPage {
             pageCacheCount++;
           } else if (key.startsWith('readBotChat_')) {
             chatHistoryCount++;
+          } else if (key.startsWith('readBotPageState_')) {
+            pageStateCount++;
           }
         } // Closing brace for hasOwnProperty check
       }
-      this.domElements.cachedPagesDisplay.textContent = pageCacheCount.toString();
+      this.domElements.cachedPagesDisplay.textContent = `${pageCacheCount} (${pageStateCount} states)`;
       this.domElements.cachedChatsDisplay.textContent = chatHistoryCount.toString();
-      logger.info(`Cache stats loaded: ${pageCacheCount} pages, ${chatHistoryCount} chats`);
+      logger.info(`Cache stats loaded: ${pageCacheCount} pages, ${chatHistoryCount} chats, ${pageStateCount} page states`);
     } catch (error) {
       logger.error('Error loading cache statistics:', error);
       this.domElements.cachedPagesDisplay.textContent = 'Error';
@@ -121,7 +124,7 @@ class OptionsPage {
       const items = await chrome.storage.local.get(null);
       const keysToRemove = [];
       for (const key in items) {
-        if (key.startsWith('readBotContent_') || key.startsWith('readBotChat_')) {
+        if (key.startsWith('readBotContent_') || key.startsWith('readBotChat_') || key.startsWith('readBotPageState_')) {
           keysToRemove.push(key);
         }
       }
@@ -152,7 +155,7 @@ class OptionsPage {
       const items = await chrome.storage.local.get(null);
       const keysToRemove = [];
       for (const key in items) {
-        if (key.startsWith('readBotContent_')) {
+        if (key.startsWith('readBotContent_') || key.startsWith('readBotPageState_')) {
           keysToRemove.push(key);
         }
       }
@@ -160,7 +163,7 @@ class OptionsPage {
       if (keysToRemove.length > 0) {
         await chrome.storage.local.remove(keysToRemove);
         logger.info(`Removed ${keysToRemove.length} page items from cache.`);
-        alert(`${keysToRemove.length} page cache items have been cleared.`);
+        alert(`${keysToRemove.length} page cache items (including page states) have been cleared.`);
       } else {
         logger.info('No page cache items to remove.');
         alert('No page cache items to remove.');
