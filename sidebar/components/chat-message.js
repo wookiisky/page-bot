@@ -10,7 +10,7 @@
  * - No save/cancel buttons needed
  */
 
-import { createLogger } from '../modules/utils.js';
+import { createLogger, hasMarkdownElements } from '../modules/utils.js';
 import { getChatHistoryFromDOM, editMessageInDOM, deleteMessagesAfter } from '../modules/chat-history.js';
 
 const logger = createLogger('ChatMessage');
@@ -167,11 +167,24 @@ const cancelEdit = (messageId, originalContent) => {
     // 用户消息使用textContent保留换行符
     contentElement.textContent = originalContent;
   } else {
-    // 助手消息使用markdown渲染
-    try {
-      contentElement.innerHTML = window.marked.parse(originalContent);
-    } catch (error) {
+    // 助手消息检查是否包含markdown
+    const containsMarkdown = hasMarkdownElements(originalContent);
+    
+    // 首先移除可能存在的no-markdown类
+    contentElement.classList.remove('no-markdown');
+    
+    if (containsMarkdown) {
+      // 包含markdown，使用markdown渲染
+      try {
+        contentElement.innerHTML = window.marked.parse(originalContent);
+      } catch (error) {
+        contentElement.textContent = originalContent;
+        contentElement.classList.add('no-markdown');
+      }
+    } else {
+      // 不包含markdown，使用纯文本并保留换行
       contentElement.textContent = originalContent;
+      contentElement.classList.add('no-markdown');
     }
   }
   

@@ -2,7 +2,7 @@
  * chat-manager.js - 聊天功能管理
  */
 
-import { createLogger } from './utils.js';
+import { createLogger, hasMarkdownElements } from './utils.js';
 import { editMessage, retryMessage } from '../components/chat-message.js';
 import { displayChatHistory as displayChatHistoryFromModule } from './chat-history.js';
 
@@ -64,13 +64,24 @@ const appendMessageToUI = (chatContainer, role, content, imageBase64 = null, isS
       contentDiv.textContent = content;
       logger.info(`[appendMessageToUI ${messageTimestamp}] Used textContent for user message to preserve line breaks.`);
     } else {
-      // For assistant messages, use markdown parsing
-      try {
-        contentDiv.innerHTML = window.marked.parse(content);
-        logger.info(`[appendMessageToUI ${messageTimestamp}] Parsed Markdown for assistant message.`);
-      } catch (error) {
-        logger.error(`[appendMessageToUI ${messageTimestamp}] Error parsing markdown for assistant message:`, error);
-        contentDiv.textContent = content; // 回退到纯文本
+      // For assistant messages, check if content contains markdown
+      const containsMarkdown = hasMarkdownElements(content);
+      
+      if (containsMarkdown) {
+        // Use markdown parsing for content with markdown elements
+        try {
+          contentDiv.innerHTML = window.marked.parse(content);
+          logger.info(`[appendMessageToUI ${messageTimestamp}] Parsed Markdown for assistant message.`);
+        } catch (error) {
+          logger.error(`[appendMessageToUI ${messageTimestamp}] Error parsing markdown for assistant message:`, error);
+          contentDiv.textContent = content; // 回退到纯文本
+          contentDiv.classList.add('no-markdown'); // Add class for preserving line breaks
+        }
+      } else {
+        // Use plain text with preserved line breaks for content without markdown
+        contentDiv.textContent = content;
+        contentDiv.classList.add('no-markdown'); // Add class for preserving line breaks
+        logger.info(`[appendMessageToUI ${messageTimestamp}] Used textContent for assistant message without markdown to preserve line breaks.`);
       }
     }
   }
@@ -222,7 +233,7 @@ const handleStreamChunk = (chatContainer, chunk) => {
       spinner.remove();
     }
     
-    // 将新块附加到缓冲区并重新渲染markdown
+    // 将新块附加到缓冲区
     let currentBuffer = streamingMessageContainer.dataset.markdownBuffer || '';
     currentBuffer += chunk;
     streamingMessageContainer.dataset.markdownBuffer = currentBuffer;
@@ -230,13 +241,23 @@ const handleStreamChunk = (chatContainer, chunk) => {
     // 保存原始内容
     streamingMessageContentDiv.setAttribute('data-raw-content', currentBuffer);
     
+    // 检测是否包含markdown元素来决定如何显示内容
+    const containsMarkdown = hasMarkdownElements(currentBuffer);
+    
     try {
-      streamingMessageContentDiv.innerHTML = window.marked.parse(currentBuffer);
+      if (containsMarkdown) {
+        // 如果包含markdown，尝试解析
+        streamingMessageContentDiv.innerHTML = window.marked.parse(currentBuffer);
+      } else {
+        // 如果不包含markdown，直接显示文本并保留换行
+        streamingMessageContentDiv.textContent = currentBuffer;
+        streamingMessageContentDiv.classList.add('no-markdown');
+      }
     } catch (error) {
       logger.error('Error parsing markdown during stream:', error);
-      // 回退：以文本形式附加，但这可能与之前的HTML混合
-      const textNode = document.createTextNode(chunk);
-      streamingMessageContentDiv.appendChild(textNode);
+      // 回退：以文本形式显示
+      streamingMessageContentDiv.textContent = currentBuffer;
+      streamingMessageContentDiv.classList.add('no-markdown');
     }
     
     // 滚动到底部
@@ -267,16 +288,27 @@ const handleStreamEnd = (chatContainer, fullResponse, onComplete) => {
     }
     logger.info('[handleStreamEnd] Found contentDiv:', contentDiv);
     
+    // Check if content contains markdown elements
+    const containsMarkdown = hasMarkdownElements(fullResponse);
+    
     try {
-      logger.info('[handleStreamEnd] Attempting to parse Markdown...');
       // 保存原始内容
       contentDiv.setAttribute('data-raw-content', fullResponse);
-      contentDiv.innerHTML = window.marked.parse(fullResponse);
-      logger.info('[handleStreamEnd] Markdown parsed and applied to contentDiv.');
+      
+      if (containsMarkdown) {
+        logger.info('[handleStreamEnd] Attempting to parse Markdown...');
+        contentDiv.innerHTML = window.marked.parse(fullResponse);
+        logger.info('[handleStreamEnd] Markdown parsed and applied to contentDiv.');
+      } else {
+        // Use plain text with preserved line breaks for content without markdown
+        contentDiv.textContent = fullResponse;
+        contentDiv.classList.add('no-markdown'); // Add class for preserving line breaks
+        logger.info('[handleStreamEnd] Applied fullResponse as plain text with preserved line breaks.');
+      }
     } catch (markdownError) {
       logger.error('[handleStreamEnd] Error parsing Markdown:', markdownError);
       contentDiv.textContent = fullResponse; // 回退到纯文本
-      contentDiv.setAttribute('data-raw-content', fullResponse);
+      contentDiv.classList.add('no-markdown'); // Add class for preserving line breaks
       logger.info('[handleStreamEnd] Applied fullResponse as plain text due to Markdown error.');
     }
         

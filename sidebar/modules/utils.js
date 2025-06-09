@@ -51,9 +51,47 @@ const showCopyToast = (message) => {
   }, 2000);
 };
 
+// 检测内容是否包含markdown元素
+const hasMarkdownElements = (content) => {
+  if (!content || typeof content !== 'string') return false;
+  
+  // Check for common markdown patterns
+  const markdownPatterns = [
+    // Headers (# ## ###)
+    /^#{1,6}\s+.*/m,
+    // Bold (**text** or __text__)
+    /(\*\*|__).+?\1/,
+    // Italic (*text* or _text_)
+    /(\*|_)[^*_\s].+?\1/,
+    // Code blocks (```code```)
+    /```[\s\S]*?```/,
+    // Inline code (`code`)
+    /`[^`]+`/,
+    // Links ([text](url) or [text][ref])
+    /\[.+?\]\(.+?\)|\[.+?\]\[.+?\]/,
+    // Images (![alt](url))
+    /!\[.*?\]\(.+?\)/,
+    // Unordered lists (- item or * item or + item)
+    /^[\s]*[-*+]\s+.*/m,
+    // Ordered lists (1. item)
+    /^[\s]*\d+\.\s+.*/m,
+    // Blockquotes (> text)
+    /^[\s]*>\s+.*/m,
+    // Horizontal rules (--- or ***)
+    /^[\s]*(-{3,}|\*{3,}|_{3,})[\s]*$/m,
+    // Tables (| col | col |)
+    /\|.+\|/,
+    // Strikethrough (~~text~~)
+    /~~.+?~~/
+  ];
+  
+  return markdownPatterns.some(pattern => pattern.test(content));
+};
+
 export {
   createLogger,
   isRestrictedPage,
   escapeHtml,
-  showCopyToast
+  showCopyToast,
+  hasMarkdownElements
 }; 

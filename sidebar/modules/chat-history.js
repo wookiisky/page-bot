@@ -3,7 +3,7 @@
  * 基于DOM的对话历史管理实现
  */
 
-import { createLogger } from './utils.js';
+import { createLogger, hasMarkdownElements } from './utils.js';
 
 const logger = createLogger('ChatHistory');
 
@@ -111,9 +111,22 @@ const editMessageInDOM = (messageId, newContent) => {
       contentEl.textContent = newContent;
       logger.info(`User message ${messageId} content edited with preserved line breaks.`);
     } else {
-      // 助手消息使用markdown渲染
-      contentEl.innerHTML = window.marked.parse(newContent);
-      logger.info(`Assistant message ${messageId} content edited with markdown parsing.`);
+      // 助手消息检查是否包含markdown
+      const containsMarkdown = hasMarkdownElements(newContent);
+      
+      // 首先移除可能存在的no-markdown类
+      contentEl.classList.remove('no-markdown');
+      
+      if (containsMarkdown) {
+        // 包含markdown，使用markdown渲染
+        contentEl.innerHTML = window.marked.parse(newContent);
+        logger.info(`Assistant message ${messageId} content edited with markdown parsing.`);
+      } else {
+        // 不包含markdown，使用纯文本并保留换行
+        contentEl.textContent = newContent;
+        contentEl.classList.add('no-markdown');
+        logger.info(`Assistant message ${messageId} content edited as plain text with preserved line breaks.`);
+      }
     }
     return true;
   } catch (error) {

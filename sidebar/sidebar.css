@@ -535,6 +535,11 @@ body {
   white-space: pre-wrap; /* Preserve line breaks and spaces for user messages */
 }
 
+/* Preserve line breaks for assistant messages without markdown */
+.assistant-message .message-content.no-markdown {
+  white-space: pre-wrap; /* Preserve line breaks and spaces for plain text assistant messages */
+}
+
 /* Adjust message content padding based on button layout */
 .chat-message.buttons-layout-row .message-content {
   padding-right: 90px; /* More space for row layout with multiple buttons */
