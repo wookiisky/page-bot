@@ -453,18 +453,17 @@ const layoutMessageButtons = (container, buttons, messageElement = null) => {
     }
     
     // 根据消息高度和按钮数量决定布局
-    if (messageElement && messageHeight > 80) {
+    if (messageElement && messageHeight > 75) {
       // 消息高度足够时，优先使用单列布局
       container.className = 'message-buttons layout-column';
       layoutType = 'column';
       buttons.forEach(button => container.appendChild(button));
-    } else if (buttonCount <= 2) {
-      // 1-2个按钮：单行布局
-      container.className = 'message-buttons layout-row';
-      layoutType = 'row';
+    } else if (messageElement && messageHeight > 35) {
+      if (buttonCount <= 2) {
+        container.className = 'message-buttons layout-column';
+      layoutType = 'column';
       buttons.forEach(button => container.appendChild(button));
-    } else if (buttonCount <= 4) {
-      // 3-4个按钮：两行布局
+    }else{
       container.className = 'message-buttons layout-2rows';
       layoutType = '2rows';
       
@@ -479,6 +478,13 @@ const layoutMessageButtons = (container, buttons, messageElement = null) => {
         
         container.appendChild(row);
       }
+    }
+
+    } else if (buttonCount <= 4) {
+      // 单行布局
+      container.className = 'message-buttons layout-row';
+      layoutType = 'row';
+      buttons.forEach(button => container.appendChild(button));
     } else {
       // 5个及以上按钮：单列布局
       container.className = 'message-buttons layout-column';
