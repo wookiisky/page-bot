@@ -530,6 +530,11 @@ body {
   transition: padding-right 0.2s ease; /* Smooth transition when layout changes */
 }
 
+/* Preserve line breaks for user messages */
+.user-message .message-content {
+  white-space: pre-wrap; /* Preserve line breaks and spaces for user messages */
+}
+
 /* Adjust message content padding based on button layout */
 .chat-message.buttons-layout-row .message-content {
   padding-right: 90px; /* More space for row layout with multiple buttons */

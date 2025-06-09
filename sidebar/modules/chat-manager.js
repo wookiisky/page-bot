@@ -148,7 +148,7 @@ const appendMessageToUI = (chatContainer, role, content, imageBase64 = null, isS
       chatContainer.scrollTop = chatContainer.scrollHeight;
     });
     
-    const buttons = [editButton, copyButton, copyMarkdownButton, retryButton];
+    const buttons = [editButton, retryButton, copyButton, copyMarkdownButton];
     
     // 动态布局按钮
     layoutMessageButtons(buttonContainer, buttons, messageDiv);
