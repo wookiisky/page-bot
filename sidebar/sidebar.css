@@ -501,13 +501,13 @@ body {
 }
 
 .chat-message.buttons-layout-column .message-content {
-  padding-right: 30px; /* Less space for column layout */
+  padding-right: 0px; /* Less space for column layout */
 }
 
 /* Message action buttons styles - Completely rewritten */
 .message-buttons {
   position: absolute;
-  right: 8px;
+  right: 2px;
   top: 50%;
   transform: translateY(-50%);
   visibility: hidden;
@@ -630,7 +630,7 @@ body {
 }
 
 .chat-message.buttons-layout-column .message-content.edit-mode {
-  padding-right: 30px;
+  padding-right: 0px;
   padding-top: 4px;
   padding-bottom: 4px;
   padding-left: 4px;
@@ -911,13 +911,13 @@ body {
 
 /* Markdown styling */
 .message-content p {
-  margin-bottom: 8px;
+  margin-bottom: 1px;
 }
 
 .message-content ol,
 .message-content ul {
   margin-left: 24px;
-  margin-bottom: 8px;
+  margin-bottom: 2px;
 }
 
 .message-content code {
