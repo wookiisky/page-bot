@@ -1,5 +1,13 @@
 /**
  * chat-message.js - 聊天消息组件
+ * 
+ * Enhanced Edit Mode Features:
+ * - Auto-save on blur (clicking outside the text area)
+ * - Auto-resize textarea based on content
+ * - Escape key to cancel editing
+ * - Ctrl/Cmd+Enter to save manually
+ * - Visual feedback with glow effect
+ * - No save/cancel buttons needed
  */
 
 import { createLogger } from '../modules/utils.js';
@@ -48,37 +56,51 @@ const editMessage = (messageElement, saveCallback) => {
   const textarea = document.createElement('textarea');
   textarea.value = originalContent;
   textarea.className = 'edit-textarea';
-  textarea.style.width = '100%';
-  textarea.style.minHeight = '60px';
-  textarea.rows = 3;
+  textarea.placeholder = 'Edit your message... (ESC to cancel, Ctrl+Enter to save)';
+  textarea.setAttribute('title', 'Auto-saves when you click outside. ESC to cancel, Ctrl+Enter to save.');
   contentElement.appendChild(textarea);
   
-  // 创建按钮容器
-  const buttonContainer = document.createElement('div');
-  buttonContainer.className = 'edit-buttons';
-  buttonContainer.style.marginTop = '8px';
-  buttonContainer.style.textAlign = 'right';
+  // Auto-resize textarea function
+  const autoResize = () => {
+    textarea.style.height = 'auto';
+    textarea.style.height = Math.max(60, textarea.scrollHeight) + 'px';
+  };
   
-  // 保存按钮
-  const saveButton = document.createElement('button');
-  saveButton.textContent = 'Save';
-  saveButton.className = 'btn-primary';
-  saveButton.onclick = () => saveEditedMessage(messageElement.id, textarea.value, saveCallback);
+  // Auto-save function
+  const autoSave = () => {
+    const newContent = textarea.value.trim();
+    if (newContent !== originalContent.trim()) {
+      logger.info(`Auto-saving edited message ${messageElement.id}`);
+      saveEditedMessage(messageElement.id, newContent, saveCallback);
+    } else {
+      // If content unchanged, just exit edit mode
+      cancelEdit(messageElement.id, originalContent);
+    }
+  };
   
-  // 取消按钮
-  const cancelButton = document.createElement('button');
-  cancelButton.textContent = 'Cancel';
-  cancelButton.className = 'btn-secondary';
-  cancelButton.style.marginRight = '8px';
-  cancelButton.onclick = () => cancelEdit(messageElement.id, originalContent);
+  // Set up event listeners
+  textarea.addEventListener('input', autoResize);
+  textarea.addEventListener('blur', autoSave);
+  textarea.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      // Cancel edit on Escape
+      cancelEdit(messageElement.id, originalContent);
+    } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      // Save on Ctrl+Enter or Cmd+Enter
+      e.preventDefault();
+      autoSave();
+    }
+  });
   
-  // 添加按钮到容器
-  buttonContainer.appendChild(cancelButton);
-  buttonContainer.appendChild(saveButton);
-  contentElement.appendChild(buttonContainer);
-  
-  // 聚焦到文本区域
+  // Initial resize and focus
+  autoResize();
   textarea.focus();
+  
+  // Select all text for easy editing
+  textarea.select();
+  
+  // Log editing instructions for user reference
+  logger.info('Edit mode activated. Auto-saves on blur, ESC to cancel, Ctrl+Enter to save manually');
 };
 
 /**
@@ -138,10 +160,19 @@ const cancelEdit = (messageId, originalContent) => {
   if (!contentElement) return;
   
   // 恢复原始内容
-  try {
-    contentElement.innerHTML = window.marked.parse(originalContent);
-  } catch (error) {
+  // 检查是否为用户消息来决定如何渲染内容
+  const isUserMessage = messageElement.classList.contains('user-message');
+  
+  if (isUserMessage) {
+    // 用户消息使用textContent保留换行符
     contentElement.textContent = originalContent;
+  } else {
+    // 助手消息使用markdown渲染
+    try {
+      contentElement.innerHTML = window.marked.parse(originalContent);
+    } catch (error) {
+      contentElement.textContent = originalContent;
+    }
   }
   
   // 移除编辑模式
