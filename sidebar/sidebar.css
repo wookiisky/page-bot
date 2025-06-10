@@ -87,7 +87,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
+  padding: 8px 12px;
   border-bottom: 1px solid var(--border-color);
   flex-shrink: 0;
 }
@@ -100,7 +100,7 @@ body {
 .extraction-controls {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   width: 100%;
   justify-content: space-between;
 }
@@ -155,16 +155,19 @@ body {
   color: var(--text-color);
 }
 
-/* Extraction button disabled state */
+/* Extraction button disabled state (flat style) */
 .extraction-btn:disabled {
-  background-color: #e0e0e0;
+  background-color: transparent;
+  border-color: #e0e0e0;
   cursor: not-allowed;
   opacity: 0.6;
 }
 
 .extraction-btn:disabled:hover {
-  background-color: #e0e0e0;
+  background-color: transparent;
+  border-color: #e0e0e0;
   transform: none;
+  box-shadow: none;
 }
 
 /* Jina button with icon */
@@ -198,7 +201,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 16px;
+  padding: 6px 12px;
   font-size: 14px;
   font-weight: 500;
   flex-shrink: 0;
@@ -206,7 +209,7 @@ body {
 
 .content-container {
   position: relative;
-  padding: 0 16px 8px;
+  padding: 0 12px 6px;
   overflow-y: auto;
   flex-grow: 1;
 }
@@ -214,9 +217,9 @@ body {
 .action-btn {
   width: 26px;
   height: 26px;
-  border-radius: 4px;
-  background-color: var(--light-gray);
-  border: 1px solid transparent;
+  border-radius: 6px;
+  background-color: transparent;
+  border: 1px solid var(--border-color);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -225,29 +228,36 @@ body {
 }
 
 .action-btn:hover {
-  background-color: var(--hover-color);
+  background-color: transparent;
+  border-color: var(--primary-color);
   transform: translateY(-1px);
-  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 4px rgba(66, 133, 244, 0.15);
 }
 
 .action-btn:active {
   transform: translateY(0);
-  box-shadow: none;
+  box-shadow: 0 1px 3px rgba(66, 133, 244, 0.2);
 }
 
 .action-btn .material-icons {
   font-size: 14px;
   color: var(--text-color);
+  transition: color 0.2s ease;
+}
+
+.action-btn:hover .material-icons {
+  color: var(--primary-color);
 }
 
 .action-btn.visible {
   display: flex;
 }
 
-/* Action button disabled state (gray) */
+/* Action button disabled state (flat style) */
 .action-btn:disabled,
 .action-btn.disabled {
-  background-color: #e0e0e0;
+  background-color: transparent;
+  border-color: #e0e0e0;
   cursor: not-allowed;
   opacity: 0.6;
 }
@@ -258,13 +268,15 @@ body {
 }
 
 .action-btn:disabled:hover {
-  background-color: #e0e0e0;
+  background-color: transparent;
+  border-color: #e0e0e0;
   transform: none;
+  box-shadow: none;
 }
 
-/* Action button active/enabled state (blue border) */
+/* Action button active/enabled state (flat style) */
 .action-btn.enabled {
-  background-color: transparent;
+  background-color: rgba(66, 133, 244, 0.08);
   border: 1px solid var(--primary-color);
 }
 
@@ -273,7 +285,14 @@ body {
 }
 
 .action-btn.enabled:hover {
-  background-color: rgba(66, 133, 244, 0.1);
+  background-color: rgba(66, 133, 244, 0.15);
+  border-color: #3b78e7;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(66, 133, 244, 0.2);
+}
+
+.action-btn.enabled:hover .material-icons {
+  color: #3b78e7;
 }
 
 .extracted-content {
@@ -429,8 +448,8 @@ body {
 .quick-inputs {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  padding: 8px 16px;
+  gap: 4px;
+  padding: 6px 12px;
   border-bottom: 1px solid var(--border-color);
   flex-shrink: 0;
 }
@@ -440,8 +459,8 @@ body {
   background-color: var(--light-gray);
   border: 1px solid transparent;
   border-radius: 4px;
-  padding: 6px 10px;
-  margin: 0 4px 4px 0;
+  padding: 4px 8px;
+  margin: 0;
   font-size: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -464,13 +483,13 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .chat-container {
   flex-grow: 1;
   overflow-y: auto;
-  padding: 2px 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -788,21 +807,21 @@ body {
 
 /* Input container */
 .input-container {
-  padding: 2px 4px 4px 4px;
+  padding: 4px;
   border-top: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
+  gap: 4px;
 }
 
 /* Model selector container */
 .model-selector-container {
   flex-shrink: 0;
-  margin-left: 6px;
 }
 
 .model-selector {
   width: 85px;
-  padding: 5px 8px;
+  padding: 4px 6px;
   border: 1px solid var(--border-color);
   border-radius: 4px;
   font-size: 11px;
@@ -811,14 +830,14 @@ body {
   color: var(--text-color);
   cursor: pointer;
   transition: all 0.2s ease;
-  height: 30px;
+  height: 28px;
   box-sizing: border-box;
   appearance: none;
   background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e");
   background-repeat: no-repeat;
   background-position: right 4px center;
   background-size: 12px;
-  padding-right: 20px;
+  padding-right: 18px;
 }
 
 .model-selector:focus {
@@ -835,7 +854,7 @@ body {
 .input-wrapper {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   width: 100%;
 }
 
@@ -843,11 +862,11 @@ body {
   flex: 1;
   border: 1px solid var(--border-color);
   border-radius: 4px;
-  padding: 6px 12px;
+  padding: 4px 8px;
   font-size: 14px;
   resize: vertical;
   font-family: inherit;
-  min-height: 30px;
+  min-height: 28px;
   max-height: 120px;
   overflow-y: auto;
   line-height: 1.4;
@@ -858,13 +877,13 @@ body {
   outline: 1px solid var(--primary-color);
 }
 
-/* Common button styles */
+/* Common flat button styles */
 .button-icon {
   width: 28px;
   height: 28px;
-  border-radius: 4px;
-  border: 1px solid transparent;
-  background-color: var(--light-gray);
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background-color: transparent;
   color: var(--text-color);
   display: flex;
   align-items: center;
@@ -876,40 +895,55 @@ body {
 }
 
 .button-icon:hover {
-  background-color: var(--hover-color);
+  background-color: transparent;
+  border-color: var(--primary-color);
   transform: translateY(-1px);
-  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 4px rgba(66, 133, 244, 0.15);
+}
+
+.button-icon:hover .material-icons {
+  color: var(--primary-color);
 }
 
 .button-icon:active {
   transform: translateY(0);
-  box-shadow: none;
+  box-shadow: 0 1px 3px rgba(66, 133, 244, 0.2);
 }
 
 .button-icon .material-icons {
   font-size: 16px;
   color: var(--text-color);
+  transition: color 0.2s ease;
 }
 
-/* Primary action buttons */
+/* Primary action buttons (flat style) */
 .button-icon.primary {
-  background-color: var(--primary-color);
-  color: white;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  background-color: transparent;
+  color: var(--primary-color);
+  border: 1px solid var(--primary-color);
+  font-weight: 600;
 }
 
 .button-icon.primary:hover {
-  background-color: #3b78e7;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  background-color: rgba(66, 133, 244, 0.1);
+  border-color: #3b78e7;
+  color: #3b78e7;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(66, 133, 244, 0.25);
 }
 
 .button-icon.primary .material-icons {
-  color: white;
+  color: var(--primary-color);
+  transition: color 0.2s ease;
 }
 
-/* Enabled state */
+.button-icon.primary:hover .material-icons {
+  color: #3b78e7;
+}
+
+/* Enabled state (flat style) */
 .button-icon[data-enabled="true"] {
-  background-color: transparent;
+  background-color: rgba(66, 133, 244, 0.08);
   border: 1px solid var(--primary-color);
 }
 
@@ -918,7 +952,14 @@ body {
 }
 
 .button-icon[data-enabled="true"]:hover {
-  background-color: rgba(66, 133, 244, 0.1);
+  background-color: rgba(66, 133, 244, 0.15);
+  border-color: #3b78e7;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(66, 133, 244, 0.2);
+}
+
+.button-icon[data-enabled="true"]:hover .material-icons {
+  color: #3b78e7;
 }
 
 /* Disabled state */
@@ -1428,8 +1469,6 @@ body {
 
 /* Unified button base style */
 .btn-base {
-  border: none;
-  border-radius: 4px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -1437,87 +1476,101 @@ body {
   transition: all 0.2s ease;
 }
 
-/* Small button style (content extraction and chat input area) */
-.action-btn, 
-.extraction-btn,
-.clear-btn,
-.export-btn {
+/* Small flat button style (content extraction and chat input area) */
+.btn-base.action-btn,
+.btn-base.extraction-btn {
   width: 26px;
   height: 26px;
-  background-color: var(--light-gray);
-  border: 1px solid transparent;
-  border-radius: 4px;
+  background-color: transparent !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 6px !important;
+  color: var(--text-color) !important;
   font-size: 14px;
+  font-weight: normal !important;
+  transition: all 0.2s ease;
 }
 
-.action-btn:hover, 
-.extraction-btn:hover:not(.active):not(:disabled),
-.clear-btn:hover,
-.export-btn:hover {
-  background-color: var(--hover-color);
+.btn-base.action-btn:hover,
+.btn-base.extraction-btn:hover:not(.active):not(:disabled) {
+  background-color: transparent !important;
+  border-color: var(--primary-color) !important;
+  color: var(--primary-color) !important;
   transform: translateY(-1px);
-  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 4px rgba(66, 133, 244, 0.15);
 }
 
-.action-btn:active, 
-.extraction-btn:active:not(.disabled),
-.clear-btn:active,
-.export-btn:active {
+.btn-base.action-btn:hover .material-icons,
+.btn-base.extraction-btn:hover:not(.active):not(:disabled) .material-icons {
+  color: var(--primary-color) !important;
+}
+
+.btn-base.action-btn:active,
+.btn-base.extraction-btn:active:not(.disabled) {
   transform: translateY(0);
-  box-shadow: none;
+  box-shadow: 0 1px 3px rgba(66, 133, 244, 0.2);
 }
 
-.action-btn .material-icons,
-.clear-btn .material-icons,
-.export-btn .material-icons {
+.btn-base.action-btn .material-icons,
+.btn-base.extraction-btn .material-icons {
   font-size: 14px;
-  color: var(--text-color);
+  color: var(--text-color) !important;
+  transition: color 0.2s ease;
 }
 
 /* Active state style */
-.extraction-btn.active {
-  background-color: var(--primary-color);
+.btn-base.extraction-btn.active {
+  background-color: var(--primary-color) !important;
+  border-color: var(--primary-color) !important;
   color: white;
 }
 
-/* Enabled state style */
-.action-btn.enabled {
-  background-color: transparent;
-  border: 1px solid var(--primary-color);
+/* Enabled state style (flat) */
+.btn-base.action-btn.enabled {
+  background-color: rgba(66, 133, 244, 0.08) !important;  
 }
 
-.action-btn.enabled .material-icons {
+.btn-base.action-btn.enabled .material-icons {
   color: var(--primary-color);
 }
 
-.action-btn.enabled:hover {
-  background-color: rgba(66, 133, 244, 0.1);
+.btn-base.action-btn.enabled:hover {
+  background-color: rgba(66, 133, 244, 0.15) !important;
+  border-color: #3b78e7 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(66, 133, 244, 0.2);
 }
 
-/* Special style for send button (emphasis) */
+.btn-base.action-btn.enabled:hover .material-icons {
+  color: #3b78e7;
+}
+
+/* Special style for send button (flat primary) */
 .send-btn {
-  background-color: var(--primary-color);
-  color: white;
-  border: none;
-  border-radius: 4px;
-  min-width: 26px;
-  height: 26px;
+  background-color: transparent;
+  color: var(--primary-color);
+  border: 2px solid var(--primary-color);
+  border-radius: 6px;
+  min-width: 28px;
+  height: 28px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  transition: all 0.2s ease;
+  font-weight: 600;
 }
 
 .send-btn:hover {
-  background-color: #3b78e7;
+  background-color: rgba(66, 133, 244, 0.1);
+  border-color: #3b78e7;
+  color: #3b78e7;
   transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 6px rgba(66, 133, 244, 0.25);
 }
 
 .send-btn:active {
   transform: translateY(0);
-  box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  box-shadow: 0 1px 3px rgba(66, 133, 244, 0.2);
 }
 
 .send-btn .material-icons {
@@ -1525,9 +1578,12 @@ body {
 }
 
 .send-btn:disabled {
-  background-color: #ccc;
+  background-color: transparent;
+  border-color: #ccc;
+  color: #ccc;
   cursor: not-allowed;
   box-shadow: none;
+  transform: none;
 }
 
 /* Adjust button container spacing */
@@ -1567,7 +1623,7 @@ body {
   flex-direction: row;
   flex-wrap: nowrap;
   gap: 4px;
-  height: 30px;
+  height: 28px;
   width: auto;
   align-items: center;
   justify-content: flex-start;
@@ -1576,10 +1632,10 @@ body {
 /* Two rows and two columns layout */
 .input-actions.layout-2x2 {
   display: grid;
-  grid-template-columns: repeat(2, 26px);
-  grid-template-rows: repeat(2, 26px);
-  width: 56px;
-  height: 56px;
+  grid-template-columns: repeat(2, 28px);
+  grid-template-rows: repeat(2, 28px);
+  width: 60px;
+  height: 60px;
   gap: 4px;
   justify-content: center;
 }
@@ -1588,32 +1644,48 @@ body {
 .input-actions.layout-4x1 {
   display: flex;
   flex-direction: column;
-  width: 26px;
-  height: 114px;
+  width: 28px;
+  height: 116px;
   gap: 4px;
   align-items: center;
   justify-content: flex-start;
 }
 
-/* Unified button style */
+/* Unified flat button style */
 .input-actions .action-btn,
 .input-actions .clear-btn,
 .input-actions .export-btn {
-  width: 26px;
-  height: 26px;
-  min-width: 26px;
-  min-height: 26px;
-  max-width: 26px;
-  max-height: 26px;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  max-width: 28px;
+  max-height: 28px;
   padding: 0;
   margin: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  border-radius: 4px;
-  background-color: var(--light-gray);
-  border: 1px solid transparent;
+  border-radius: 6px;
+  background-color: transparent;
+  border: 1px solid var(--border-color);
+  transition: all 0.2s ease;
+}
+
+.input-actions .action-btn:hover,
+.input-actions .clear-btn:hover,
+.input-actions .export-btn:hover {
+  background-color: transparent;
+  border-color: var(--primary-color);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(66, 133, 244, 0.15);
+}
+
+.input-actions .action-btn:hover .material-icons,
+.input-actions .clear-btn:hover .material-icons,
+.input-actions .export-btn:hover .material-icons {
+  color: var(--primary-color);
 }
 
 /* Unified icon size */
@@ -1622,11 +1694,13 @@ body {
 .input-actions .export-btn .material-icons {
   font-size: 14px;
   line-height: 1;
+  color: var(--text-color);
+  transition: color 0.2s ease;
 }
 
-/* 保持enabled样式 */
+/* Enabled state for flat buttons */
 .input-actions .action-btn.enabled {
-  background-color: transparent;
+  background-color: rgba(66, 133, 244, 0.08);
   border: 1px solid var(--primary-color);
 }
 
@@ -1634,11 +1708,22 @@ body {
   color: var(--primary-color);
 }
 
+.input-actions .action-btn.enabled:hover {
+  background-color: rgba(66, 133, 244, 0.15);
+  border-color: #3b78e7;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(66, 133, 244, 0.2);
+}
+
+.input-actions .action-btn.enabled:hover .material-icons {
+  color: #3b78e7;
+}
+
 /* 输入框容器调整 */
 .input-wrapper {
   display: flex;
   align-items: flex-start;
-  gap: 6px;
+  gap: 4px;
   width: 100%;
   flex-wrap: nowrap;
 }
@@ -1654,7 +1739,7 @@ body {
   justify-content: center;
   background-color: transparent;
   transition: background-color 0.2s ease;
-  margin: 0 0 2px 0;
+  margin: 0;
   z-index: 10;
   border-radius: 0;
 }
@@ -1683,17 +1768,35 @@ body {
   .model-selector {
     width: 70px;
     font-size: 10px;
-    padding: 4px 6px;
-    padding-right: 18px;
+    padding: 3px 4px;
+    padding-right: 16px;
     background-size: 10px;
+    height: 26px;
   }
   
   .input-wrapper {
-    gap: 4px;
+    gap: 3px;
   }
   
   #userInput {
     font-size: 13px;
-    padding: 5px 8px;
+    padding: 3px 6px;
+    min-height: 26px;
+  }
+  
+  .header {
+    padding: 6px 8px;
+  }
+  
+  .content-header {
+    padding: 4px 8px;
+  }
+  
+  .content-container {
+    padding: 0 8px 4px;
+  }
+  
+  .quick-inputs {
+    padding: 4px 8px;
   }
 } 
