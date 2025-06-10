@@ -15,9 +15,13 @@ import * as ImageHandler from './modules/image-handler.js';
 import * as QuickInputs from './components/quick-inputs.js';
 import * as ChatMessage from './components/chat-message.js';
 import * as ChatHistory from './modules/chat-history.js';
+import { ModelSelector } from './modules/model-selector.js';
 
 // Create logger
 const logger = createLogger('Sidebar');
+
+// Global variables
+let modelSelector = null;
 
 // Global utility functions for other modules
 window.showCopyToast = showCopyToast;
@@ -40,6 +44,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   // Load current page data
   await loadCurrentPageData();
+  
+  // Initialize model selector
+  modelSelector = new ModelSelector();
   
   // Load quick input buttons
   loadQuickInputs();
@@ -432,6 +439,9 @@ async function sendUserMessage() {
   }
 
   try {
+    // Get selected model
+    const selectedModel = modelSelector ? modelSelector.getSelectedModel() : null;
+    
     // Send message to background script for LLM processing
     await MessageHandler.sendLlmMessage({
       messages: chatHistory,
@@ -439,7 +449,8 @@ async function sendUserMessage() {
       extractedPageContent: pageContentForPayload,
       imageBase64: imageBase64,
       currentUrl: StateManager.getStateItem('currentUrl'),
-      extractionMethod: StateManager.getStateItem('currentExtractionMethod')
+      extractionMethod: StateManager.getStateItem('currentExtractionMethod'),
+      selectedModel: selectedModel
     });
   } catch (error) {
     logger.error('Error sending message to LLM via service worker:', error);
@@ -513,13 +524,17 @@ async function handleQuickInputClick(displayText, sendTextTemplate) {
   }
 
   try {
+    // Get selected model
+    const selectedModel = modelSelector ? modelSelector.getSelectedModel() : null;
+    
     // Send message to background script for LLM processing
     await MessageHandler.sendLlmMessage({
       messages: chatHistory,
       systemPromptTemplate: systemPromptTemplateForPayload,
       extractedPageContent: pageContentForPayload,
       currentUrl: state.currentUrl,
-      extractionMethod: state.currentExtractionMethod
+      extractionMethod: state.currentExtractionMethod,
+      selectedModel: selectedModel
     });
   } catch (error) {
     logger.error('Error sending quick message:', error);

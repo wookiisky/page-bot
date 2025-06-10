@@ -794,9 +794,47 @@ body {
   flex-direction: column;
 }
 
+/* Model selector container */
+.model-selector-container {
+  flex-shrink: 0;
+  margin-left: 6px;
+}
+
+.model-selector {
+  width: 85px;
+  padding: 5px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: inherit;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  height: 30px;
+  box-sizing: border-box;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 4px center;
+  background-size: 12px;
+  padding-right: 20px;
+}
+
+.model-selector:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.1);
+}
+
+.model-selector:hover {
+  border-color: var(--primary-color);
+  background-color: rgba(66, 133, 244, 0.05);
+}
+
 .input-wrapper {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 6px;
   width: 100%;
 }
@@ -805,13 +843,15 @@ body {
   flex: 1;
   border: 1px solid var(--border-color);
   border-radius: 4px;
-  padding: 8px 12px;
+  padding: 6px 12px;
   font-size: 14px;
   resize: vertical;
   font-family: inherit;
   min-height: 30px;
+  max-height: 120px;
   overflow-y: auto;
   line-height: 1.4;
+  box-sizing: border-box;
 }
 
 #userInput:focus {
@@ -1636,4 +1676,24 @@ body {
 .input-resize-handle:hover::before {
   background-color: var(--primary-color);
   width: 40px;
+}
+
+/* Responsive design for narrow screens */
+@media (max-width: 280px) {
+  .model-selector {
+    width: 70px;
+    font-size: 10px;
+    padding: 4px 6px;
+    padding-right: 18px;
+    background-size: 10px;
+  }
+  
+  .input-wrapper {
+    gap: 4px;
+  }
+  
+  #userInput {
+    font-size: 13px;
+    padding: 5px 8px;
+  }
 } 

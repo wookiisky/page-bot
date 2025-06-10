@@ -3,18 +3,26 @@
   "jinaApiKey": "",
   "jinaResponseTemplate": "# {title}\n\n**URL:** {url}\n\n**Description:** {description}\n\n## Content\n\n{content}",
   "llm": {
-    "defaultProvider": "gemini",
-    "providers": {
-      "openai": {
+    "defaultModelId": "gemini-pro",
+    "models": [
+      {
+        "id": "gemini-pro",
+        "name": "Google Gemini Pro",
+        "provider": "gemini",
+        "apiKey": "",
+        "model": "gemini-2.5-pro-preview-05-06",
+        "enabled": true
+      },
+      {
+        "id": "openai-gpt35",
+        "name": "OpenAI GPT-3.5",
+        "provider": "openai",
         "apiKey": "",
         "baseUrl": "https://api.openai.com",
-        "model": "gpt-3.5-turbo"
-      },
-      "gemini": {
-        "apiKey": "",
-        "model": "gemini-2.5-pro-preview-05-06"
+        "model": "gpt-3.5-turbo",
+        "enabled": true
       }
-    }
+    ]
   },
   "systemPrompt": "使用中文输出",
   "quickInputs": [

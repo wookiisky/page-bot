@@ -24,28 +24,35 @@ configManager.getDefaultConfig = async function() {
     return {
       defaultExtractionMethod: 'readability',
       jinaApiKey: '',
-
       jinaResponseTemplate: '# {title}\n\n**URL:** {url}\n\n**Description:** {description}\n\n## Content\n\n{content}',
       llm: {
-        defaultProvider: 'openai',
-        providers: {
-          openai: {
+        defaultModelId: 'gemini-pro',
+        models: [
+          {
+            id: 'gemini-pro',
+            name: 'Google Gemini Pro',
+            provider: 'gemini',
+            apiKey: '',
+            model: 'gemini-2.5-pro-preview-05-06',
+            enabled: true
+          },
+          {
+            id: 'openai-gpt35',
+            name: 'OpenAI GPT-3.5',
+            provider: 'openai',
             apiKey: '',
             baseUrl: 'https://api.openai.com',
-            model: 'gpt-3.5-turbo'
-          },
-          gemini: {
-            apiKey: '',
-            model: 'gemini-pro'
+            model: 'gpt-3.5-turbo',
+            enabled: true
           }
-        }
+        ]
       },
-      systemPrompt: 'You are a helpful assistant. The user is interacting with content from a webpage. The extracted content is provided below:\n{CONTENT}\n\nAnswer the user\'s questions based on this content and your general knowledge.',
+      systemPrompt: '使用中文输出',
       quickInputs: [
-        { displayText: 'Summarize Content', sendText: 'Please summarize the following content:\n{CONTENT}' },
-        { displayText: 'Extract Key Points', sendText: 'Extract key points from this content:\n{CONTENT}' }
+        { displayText: '总结', sendText: '简明概要的总结下面的文章:\n\n{CONTENT}' },
+        { displayText: '提取要点', sendText: 'Extract key points from this content:\n{CONTENT}' }
       ],
-      contentDisplayHeight: 300
+      contentDisplayHeight: 100
     };
   }
 }
@@ -82,21 +89,67 @@ configManager.getConfig = async function() {
         ...storedConfig,
         llm: {
           ...defaultConfig.llm,
-          ...storedConfig.llm,
-          providers: {
-            ...defaultConfig.llm.providers,
-            ...storedConfig.llm?.providers,
-            openai: {
-              ...defaultConfig.llm.providers.openai,
-              ...storedConfig.llm?.providers?.openai
-            },
-            gemini: {
-              ...defaultConfig.llm.providers.gemini,
-              ...storedConfig.llm?.providers?.gemini
-            }
-          }
+          ...storedConfig.llm
         }
       };
+      
+      // Handle legacy configuration format migration
+      if (storedConfig.llm?.providers && !storedConfig.llm?.models) {
+        configLogger.info('Migrating legacy LLM configuration format');
+        const legacyProviders = storedConfig.llm.providers;
+        const defaultProvider = storedConfig.llm.defaultProvider || 'openai';
+        
+        mergedConfig.llm.models = [];
+        mergedConfig.llm.defaultModelId = null;
+        
+        // Convert OpenAI provider to model
+        if (legacyProviders.openai) {
+          const openaiModel = {
+            id: 'openai-legacy',
+            name: 'OpenAI (Legacy)',
+            provider: 'openai',
+            apiKey: legacyProviders.openai.apiKey || '',
+            baseUrl: legacyProviders.openai.baseUrl || 'https://api.openai.com',
+            model: legacyProviders.openai.model || 'gpt-3.5-turbo',
+            enabled: true
+          };
+          mergedConfig.llm.models.push(openaiModel);
+          
+          if (defaultProvider === 'openai') {
+            mergedConfig.llm.defaultModelId = 'openai-legacy';
+          }
+        }
+        
+        // Convert Gemini provider to model
+        if (legacyProviders.gemini) {
+          const geminiModel = {
+            id: 'gemini-legacy',
+            name: 'Gemini (Legacy)',
+            provider: 'gemini',
+            apiKey: legacyProviders.gemini.apiKey || '',
+            model: legacyProviders.gemini.model || 'gemini-pro',
+            enabled: true
+          };
+          mergedConfig.llm.models.push(geminiModel);
+          
+          if (defaultProvider === 'gemini') {
+            mergedConfig.llm.defaultModelId = 'gemini-legacy';
+          }
+        }
+        
+        // Set default if not set
+        if (!mergedConfig.llm.defaultModelId && mergedConfig.llm.models.length > 0) {
+          mergedConfig.llm.defaultModelId = mergedConfig.llm.models[0].id;
+        }
+        
+        // Remove legacy fields
+        delete mergedConfig.llm.providers;
+        delete mergedConfig.llm.defaultProvider;
+        
+        // Save migrated configuration
+        await configManager.saveConfig(mergedConfig);
+        configLogger.info('Legacy configuration migrated successfully');
+      }
       
       return mergedConfig;
     } else {

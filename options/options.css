@@ -133,11 +133,198 @@ small {
   background-color: var(--hover-color);
 }
 
-/* LLM Settings */
-.llm-settings {
-  border-left: 3px solid var(--primary-color);
-  padding-left: 0.75rem;
-  margin: 0.5rem 0;
+/* Model Configuration Styles */
+.models-section {
+  margin-top: 1rem;
+}
+
+.models-container {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.5rem;
+  background-color: var(--light-gray);
+  min-height: 100px;
+}
+
+.model-config-item {
+  background-color: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  margin-bottom: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+  cursor: move;
+}
+
+.model-config-item:hover {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.model-header {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.drag-handle {
+  margin-right: 0.5rem;
+  color: #5f6368;
+  cursor: grab;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.drag-handle .material-icons {
+  font-size: 18px;
+}
+
+.model-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.model-name {
+  font-weight: 500;
+  font-size: 0.95rem;
+  color: var(--text-color);
+}
+
+.model-provider {
+  font-size: 0.8rem;
+  color: #5f6368;
+  text-transform: capitalize;
+}
+
+.model-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  margin: 0;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: 0.3s;
+  border-radius: 24px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.3s;
+  border-radius: 50%;
+}
+
+input:checked + .slider {
+  background-color: var(--primary-color);
+}
+
+input:checked + .slider:before {
+  transform: translateX(20px);
+}
+
+.remove-model-btn {
+  background: none;
+  border: none;
+  color: var(--error-color);
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.remove-model-btn:hover {
+  background-color: rgba(217, 48, 37, 0.1);
+}
+
+.remove-model-btn .material-icons {
+  font-size: 18px;
+}
+
+.model-form {
+  padding: 0.75rem;
+  transition: all 0.3s ease;
+}
+
+.model-form.collapsed {
+  display: none;
+}
+
+.model-form.expanded {
+  display: block;
+}
+
+.model-form .form-group {
+  margin-bottom: 0.75rem;
+}
+
+.model-form .form-group:last-child {
+  margin-bottom: 0;
+}
+
+.model-form label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+}
+
+.model-form input,
+.model-form select {
+  padding: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.add-model-btn {
+  width: 100%;
+  padding: 0.75rem;
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: background-color 0.2s;
+}
+
+.add-model-btn:hover {
+  background-color: #3367d6;
+}
+
+.add-model-btn .material-icons {
+  font-size: 18px;
 }
 
 /* Quick Input Items */

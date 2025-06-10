@@ -23,4 +23,15 @@ async function handleSaveConfig(data, configManager, serviceLogger) {
         serviceLogger.error('Handler: Error saving config:', error);
         return { type: 'CONFIG_ERROR', error: error.message || 'Failed to save config' };
     }
+}
+
+async function handleResetConfig(configManager, serviceLogger) {
+    serviceLogger.info('Handler: Resetting config to defaults');
+    try {
+        await configManager.resetConfig();
+        return { type: 'CONFIG_RESET' };
+    } catch (error) {
+        serviceLogger.error('Handler: Error resetting config:', error);
+        return { type: 'CONFIG_ERROR', error: error.message || 'Failed to reset config' };
+    }
 } 

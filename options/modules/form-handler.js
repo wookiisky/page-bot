@@ -13,20 +13,9 @@ export class FormHandler {
     domElements.jinaResponseTemplate.value = config.jinaResponseTemplate || 
       '# {title}\n\n**URL:** {url}\n\n**Description:** {description}\n\n## Content\n\n{content}';
     
-    // LLM settings
-    domElements.defaultLlmProvider.value = config.llm?.defaultProvider || 'openai';
-    
-    // OpenAI settings
-    if (config.llm?.providers?.openai) {
-      domElements.openaiApiKey.value = config.llm.providers.openai.apiKey || '';
-      domElements.openaiBaseUrl.value = config.llm.providers.openai.baseUrl || 'https://api.openai.com';
-      domElements.openaiModel.value = config.llm.providers.openai.model || 'gpt-3.5-turbo';
-    }
-    
-    // Gemini settings
-    if (config.llm?.providers?.gemini) {
-      domElements.geminiApiKey.value = config.llm.providers.gemini.apiKey || '';
-      domElements.geminiModel.value = config.llm.providers.gemini.model || 'gemini-pro';
+    // LLM settings - handled by ModelManager
+    if (config.llm?.defaultModelId && domElements.defaultModelSelect) {
+      domElements.defaultModelSelect.value = config.llm.defaultModelId;
     }
     
     // UI settings
@@ -45,15 +34,10 @@ export class FormHandler {
     domGroups.jinaResponseTemplateGroup.style.display = method === 'jina' ? 'block' : 'none';
   }
   
-  // Toggle visibility of LLM provider specific settings
+  // Toggle visibility of LLM provider specific settings (deprecated - kept for compatibility)
   static toggleLlmSettings(domElements, domGroups) {
-    const provider = domElements.defaultLlmProvider.value;
-    
-    // OpenAI settings
-    domGroups.openaiSettings.style.display = provider === 'openai' ? 'block' : 'none';
-    
-    // Gemini settings
-    domGroups.geminiSettings.style.display = provider === 'gemini' ? 'block' : 'none';
+    // This method is no longer needed with the new model management system
+    // Kept for backward compatibility
   }
   
   // Show save notification

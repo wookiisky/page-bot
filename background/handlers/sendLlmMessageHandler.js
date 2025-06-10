@@ -1,14 +1,53 @@
 // background/handlers/sendLlmMessageHandler.js
 
 async function handleSendLlmMessage(data, serviceLogger, configManager, storage, llmService, safeSendMessage) {
-    const { messages, systemPromptTemplate, extractedPageContent, imageBase64, currentUrl /*, extractionMethod */ } = data.payload;
+    const { messages, systemPromptTemplate, extractedPageContent, imageBase64, currentUrl, selectedModel /*, extractionMethod */ } = data.payload;
     // extractionMethod is in data.payload but not directly used by this handler, so commented out to avoid unused variable warnings.
 
     const config = await configManager.getConfig();
-    const llmConfig = {
-        provider: config.llm.defaultProvider,
-        ...config.llm.providers[config.llm.defaultProvider]
-    };
+    
+    // Use selected model or fall back to default
+    let llmConfig;
+    if (selectedModel && selectedModel.id) {
+        // Use the selected model configuration
+        llmConfig = {
+            provider: selectedModel.provider,
+            apiKey: selectedModel.apiKey,
+            model: selectedModel.model
+        };
+        
+        // Add provider-specific fields
+        if (selectedModel.provider === 'openai' && selectedModel.baseUrl) {
+            llmConfig.baseUrl = selectedModel.baseUrl;
+        }
+        
+        serviceLogger.info(`Using selected model: ${selectedModel.name} (${selectedModel.provider})`);
+    } else {
+        // Fall back to default model from config
+        const defaultModelId = config.llm?.defaultModelId;
+        const defaultModel = config.llm?.models?.find(model => model.id === defaultModelId);
+        
+        if (defaultModel) {
+            llmConfig = {
+                provider: defaultModel.provider,
+                apiKey: defaultModel.apiKey,
+                model: defaultModel.model
+            };
+            
+            if (defaultModel.provider === 'openai' && defaultModel.baseUrl) {
+                llmConfig.baseUrl = defaultModel.baseUrl;
+            }
+            
+            serviceLogger.info(`Using default model: ${defaultModel.name} (${defaultModel.provider})`);
+        } else {
+            // Legacy fallback for old configuration format
+            llmConfig = {
+                provider: config.llm?.defaultProvider || 'openai',
+                ...config.llm?.providers?.[config.llm?.defaultProvider || 'openai']
+            };
+            serviceLogger.warn('Using legacy configuration format');
+        }
+    }
 
     const systemPrompt = systemPromptTemplate.replace('{CONTENT}', extractedPageContent || '');
 

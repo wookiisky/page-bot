@@ -136,6 +136,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           return await handleGetConfig(configManager, serviceLogger);
         case 'SAVE_CONFIG':
           return await handleSaveConfig(data, configManager, serviceLogger);
+        case 'RESET_CONFIG':
+          return await handleResetConfig(configManager, serviceLogger);
         case 'SAVE_CHAT_HISTORY':
           return await handleSaveChatHistory(data, serviceLogger, storage);
         case 'SAVE_PAGE_STATE':

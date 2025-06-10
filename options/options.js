@@ -6,6 +6,7 @@ import { domElements, domGroups } from './modules/dom-elements.js';
 import { ConfigManager } from './modules/config-manager.js';
 import { FormHandler } from './modules/form-handler.js';
 import { QuickInputsManager } from './modules/quick-inputs.js';
+import { ModelManager } from './modules/model-manager.js';
 
 // Import logger module
 const logger = window.logger ? window.logger.createModuleLogger('Options') : console;
@@ -16,6 +17,7 @@ class OptionsPage {
   constructor() {
     this.domElements = domElements;
     this.domGroups = domGroups;
+    this.modelManager = new ModelManager(domElements);
   }
   
   // Initialize the options page
@@ -41,12 +43,14 @@ class OptionsPage {
       // Populate form with loaded config
       FormHandler.populateForm(config, this.domElements);
       
+      // Initialize model manager with config
+      this.modelManager.init(config);
+      
       // Render quick inputs
       QuickInputsManager.renderQuickInputs(config.quickInputs || [], this.domElements);
       
       // Toggle appropriate settings based on current values
       FormHandler.toggleExtractionMethodSettings(this.domElements, this.domGroups);
-      FormHandler.toggleLlmSettings(this.domElements, this.domGroups);
     }
   }
   
@@ -57,10 +61,7 @@ class OptionsPage {
       FormHandler.toggleExtractionMethodSettings(this.domElements, this.domGroups);
     });
     
-    // Default LLM provider toggle
-    this.domElements.defaultLlmProvider.addEventListener('change', () => {
-      FormHandler.toggleLlmSettings(this.domElements, this.domGroups);
-    });
+    // Model manager will handle its own event listeners
     
     // Save settings button
     this.domElements.saveBtn.addEventListener('click', () => {
@@ -205,7 +206,7 @@ class OptionsPage {
   // Save settings to storage
   async saveSettings() {
     // Build config from form
-    const config = ConfigManager.buildConfigFromForm(this.domElements);
+    const config = ConfigManager.buildConfigFromForm(this.domElements, this.modelManager);
     
     // Add quick inputs to config
     config.quickInputs = QuickInputsManager.getQuickInputs(this.domElements);

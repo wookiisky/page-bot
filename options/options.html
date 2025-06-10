@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Page Bot Settings</title>
   <link rel="stylesheet" href="options.css">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 </head>
 <body>
   <div class="container">
@@ -43,49 +44,22 @@
         
         <!-- LLM Settings -->
         <section class="settings-section">
-          <h2>Language Model</h2>
+          <h2>Language Models</h2>
           
           <div class="form-group">
-            <label for="defaultLlmProvider">Default LLM Provider</label>
-            <select id="defaultLlmProvider" name="defaultLlmProvider">
-              <option value="openai">OpenAI (Compatible)</option>
-              <option value="gemini">Google Gemini</option>
+            <label for="defaultModelSelect">Default Model</label>
+            <select id="defaultModelSelect" name="defaultModelSelect">
+              <!-- Options will be populated dynamically -->
             </select>
+            <small>Select the default model for new conversations. You can change the model for each conversation in the chat interface.</small>
           </div>
           
-          <!-- OpenAI Settings -->
-          <div class="llm-settings" id="openaiSettings">
-            <h3>OpenAI Settings</h3>
+          <div class="models-section">
+            <h3>Model Configurations</h3>
+            <p>Configure multiple AI models and drag to reorder them. Only enabled models will appear in the chat interface.</p>
             
-            <div class="form-group">
-              <label for="openaiApiKey">API Key</label>
-              <input type="password" id="openaiApiKey" name="openaiApiKey" placeholder="Enter your OpenAI API key">
-            </div>
-            
-            <div class="form-group">
-              <label for="openaiBaseUrl">API Base URL</label>
-              <input type="text" id="openaiBaseUrl" name="openaiBaseUrl" placeholder="https://api.openai.com" value="https://api.openai.com">
-              <small>Can be changed for OpenAI-compatible APIs.</small>
-            </div>
-            
-            <div class="form-group">
-              <label for="openaiModel">Model</label>
-              <input type="text" id="openaiModel" name="openaiModel" placeholder="gpt-3.5-turbo" value="gpt-3.5-turbo">
-            </div>
-          </div>
-          
-          <!-- Gemini Settings -->
-          <div class="llm-settings" id="geminiSettings">
-            <h3>Google Gemini Settings</h3>
-            
-            <div class="form-group">
-              <label for="geminiApiKey">API Key</label>
-              <input type="password" id="geminiApiKey" name="geminiApiKey" placeholder="Enter your Gemini API key">
-            </div>
-            
-            <div class="form-group">
-              <label for="geminiModel">Model</label>
-              <input type="text" id="geminiModel" name="geminiModel" placeholder="gemini-2.5-pro-preview-05-06" value="gemini-pro">
+            <div id="modelsContainer" class="models-container">
+              <!-- Model configurations will be added here dynamically -->
             </div>
           </div>
         </section>

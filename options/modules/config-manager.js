@@ -79,25 +79,15 @@ export class ConfigManager {
   }
   
   // Build config object from form values
-  static buildConfigFromForm(domElements) {
+  static buildConfigFromForm(domElements, modelManager) {
     return {
       defaultExtractionMethod: domElements.defaultExtractionMethod.value,
       jinaApiKey: domElements.jinaApiKey.value,
       jinaResponseTemplate: domElements.jinaResponseTemplate.value,
       
       llm: {
-        defaultProvider: domElements.defaultLlmProvider.value,
-        providers: {
-          openai: {
-            apiKey: domElements.openaiApiKey.value,
-            baseUrl: domElements.openaiBaseUrl.value,
-            model: domElements.openaiModel.value
-          },
-          gemini: {
-            apiKey: domElements.geminiApiKey.value,
-            model: domElements.geminiModel.value
-          }
-        }
+        defaultModelId: modelManager.getDefaultModelId(),
+        models: modelManager.getModels()
       },
       systemPrompt: domElements.systemPrompt.value,
       contentDisplayHeight: parseInt(domElements.contentDisplayHeight.value) || 300

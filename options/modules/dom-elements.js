@@ -13,17 +13,9 @@ export const domElements = {
   jinaApiKey: document.getElementById('jinaApiKey'),
   jinaResponseTemplate: document.getElementById('jinaResponseTemplate'),
   
-  // LLM provider elements
-  defaultLlmProvider: document.getElementById('defaultLlmProvider'),
-  
-  // OpenAI elements
-  openaiApiKey: document.getElementById('openaiApiKey'),
-  openaiBaseUrl: document.getElementById('openaiBaseUrl'),
-  openaiModel: document.getElementById('openaiModel'),
-  
-  // Gemini elements
-  geminiApiKey: document.getElementById('geminiApiKey'),
-  geminiModel: document.getElementById('geminiModel'),
+  // LLM model elements
+  defaultModelSelect: document.getElementById('defaultModelSelect'),
+  modelsContainer: document.getElementById('modelsContainer'),
   
   // UI settings
   contentDisplayHeight: document.getElementById('contentDisplayHeight'),
@@ -44,7 +36,5 @@ export const domElements = {
 // DOM element groups for easier management
 export const domGroups = {
   jinaApiKeyGroup: document.getElementById('jinaApiKeyGroup'),
-  jinaResponseTemplateGroup: document.getElementById('jinaResponseTemplateGroup'),
-  openaiSettings: document.getElementById('openaiSettings'),
-  geminiSettings: document.getElementById('geminiSettings')
+  jinaResponseTemplateGroup: document.getElementById('jinaResponseTemplateGroup')
 }; 
