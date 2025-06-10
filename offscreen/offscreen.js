@@ -1,18 +1,53 @@
 // offscreen.js
 
-// Import logger module (fallback to console if not available in offscreen context)
-const logger = (() => {
-  try {
-    return window.logger ? window.logger.createModuleLogger('@offscreen') : console;
-  } catch (e) {
-    return console;
+// Use existing logger if available, otherwise fallback to console
+let offscreenLogger;
+try {
+  if (typeof logger !== 'undefined' && logger && logger.createModuleLogger) {
+    offscreenLogger = logger.createModuleLogger('@offscreen');
+  } else if (window.logger && window.logger.createModuleLogger) {
+    offscreenLogger = window.logger.createModuleLogger('@offscreen');
+  } else {
+    offscreenLogger = console;
   }
-})();
+} catch (e) {
+  offscreenLogger = console;
+}
+
+// Log initial state
+offscreenLogger.info('Offscreen document loaded');
+offscreenLogger.info('Readability available:', !!self.Readability);
+offscreenLogger.info('TurndownService available:', !!self.TurndownService);
+offscreenLogger.info('DOM Parser available:', !!DOMParser);
+
+// Add diagnostic function for debugging
+window.debugReadability = function() {
+  console.log('=== Readability Debug Info ===');
+  console.log('Readability available:', !!self.Readability);
+  console.log('TurndownService available:', !!self.TurndownService);
+  console.log('DOMParser available:', !!DOMParser);
+  console.log('Document available:', !!document);
+  console.log('Window location:', window.location.href);
+  
+  if (self.Readability) {
+    try {
+      const testDoc = new DOMParser().parseFromString('<html><body><p>Test</p></body></html>', 'text/html');
+      const reader = new self.Readability(testDoc);
+      const result = reader.parse();
+      console.log('Test parse result:', !!result);
+    } catch (e) {
+      console.error('Test parse error:', e);
+    }
+  }
+  console.log('=== End Debug Info ===');
+};
 
 // Listen for messages from the service worker.
 chrome.runtime.onMessage.addListener(handleMessages);
 
 async function handleMessages(message, sender, sendResponse) {
+  offscreenLogger.info('Received message in offscreen:', { type: message.type, target: message.target });
+  
   if (message.target !== 'offscreen') {
     return false; // Not for us
   }
@@ -21,63 +56,135 @@ async function handleMessages(message, sender, sendResponse) {
     case 'extract-content':
     case 'extract-content-readability':
       try {
-        logger.debug(`Processing message type: ${message.type}`, { pageUrl: message.pageUrl });
+        offscreenLogger.info(`Processing message type: ${message.type}`, { 
+          pageUrl: message.pageUrl, 
+          hasHtmlString: !!message.htmlString,
+          htmlLength: message.htmlString ? message.htmlString.length : 0
+        });
+        
+        if (!message.htmlString) {
+          offscreenLogger.error('No HTML string provided for extraction');
+          sendResponse({ success: false, error: 'No HTML content provided for extraction.' });
+          return true;
+        }
+        
         const article = processWithReadability(message.htmlString, message.pageUrl);
+        
         if (article && article.content) {
+          offscreenLogger.info('Article extraction successful', { 
+            title: article.title, 
+            contentLength: article.content.length,
+            hasTextContent: !!article.textContent
+          });
+          
           const markdown = htmlToMarkdown(article.content);
           const fullContent = `# ${article.title || 'Untitled'}\n\n${markdown}`;
-          logger.info('Readability processing successful', { pageUrl: message.pageUrl, title: article.title });
+          
+          offscreenLogger.info('Readability processing successful', { 
+            pageUrl: message.pageUrl, 
+            title: article.title,
+            finalContentLength: fullContent.length
+          });
+          
           sendResponse({ success: true, content: fullContent });
         } else {
-          logger.error('Readability failed to parse content or extract title/content', { pageUrl: message.pageUrl });
+          offscreenLogger.error('Readability failed to parse content or extract title/content', { 
+            pageUrl: message.pageUrl,
+            article: article,
+            hasArticle: !!article,
+            hasContent: article ? !!article.content : false,
+            hasTitle: article ? !!article.title : false
+          });
           sendResponse({ success: false, error: 'Readability failed to parse content or extract title/content.' });
         }
       } catch (e) {
-        logger.error('Error in offscreen document during Readability processing:', { pageUrl: message.pageUrl, error: e.message, stack: e.stack });
-        sendResponse({ success: false, error: e.toString() });
+        offscreenLogger.error('Error in offscreen document during Readability processing:', { 
+          pageUrl: message.pageUrl, 
+          error: e.message, 
+          stack: e.stack,
+          name: e.name
+        });
+        sendResponse({ success: false, error: `Processing error: ${e.message}` });
       }
       return true; // Indicates an asynchronous response.
     default:
-      logger.warn(`Unexpected message type received: '${message.type}'.`, { receivedMessage: message });
+      offscreenLogger.warn(`Unexpected message type received: '${message.type}'.`, { receivedMessage: message });
       sendResponse({ success: false, error: `Unknown message type: ${message.type}` });
       return false;
   }
 }
 
 function processWithReadability(htmlString, pageUrl) {
+  offscreenLogger.info('Starting Readability processing', {
+    htmlLength: htmlString.length,
+    pageUrl: pageUrl,
+    readabilityAvailable: !!self.Readability
+  });
+  
   if (!self.Readability) {
-    logger.error('Readability library not loaded in offscreen document.');
+    offscreenLogger.error('Readability library not loaded in offscreen document.');
     throw new Error('Readability library not loaded.');
   }
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(htmlString, 'text/html');
   
-  // Set baseURI for proper relative URL resolution by Readability
-  if (pageUrl) {
-    let base = doc.querySelector('base');
-    if (!base) {
-      base = doc.createElement('base');
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(htmlString, 'text/html');
+    
+    offscreenLogger.info('HTML parsed successfully', {
+      hasDocumentElement: !!doc.documentElement,
+      hasHead: !!doc.head,
+      hasBody: !!doc.body,
+      bodyChildCount: doc.body ? doc.body.children.length : 0
+    });
+    
+    // Set baseURI for proper relative URL resolution by Readability
+    if (pageUrl) {
+      let base = doc.querySelector('base');
+      if (!base) {
+        base = doc.createElement('base');
+        doc.head.appendChild(base);
+      }
+      base.href = pageUrl;
+      offscreenLogger.debug('Set base href for Readability document', { pageUrl });
+    } else if (doc.baseURI === "about:blank" && doc.head) {
+      // Fallback if pageUrl is not provided, though it's less ideal
+      let base = doc.createElement('base');
+      base.href = 'http://localhost/'; 
       doc.head.appendChild(base);
+      offscreenLogger.warn('pageUrl not provided for Readability, using generic localhost base.');
     }
-    base.href = pageUrl;
-    logger.debug('Set base href for Readability document', { pageUrl });
-  } else if (doc.baseURI === "about:blank" && doc.head) {
-    // Fallback if pageUrl is not provided, though it's less ideal
-    let base = doc.createElement('base');
-    base.href = 'http://localhost/'; 
-    doc.head.appendChild(base);
-    logger.warn('pageUrl not provided for Readability, using generic localhost base.');
-  }
 
-  const reader = new self.Readability(doc);
-  return reader.parse();
+    const reader = new self.Readability(doc);
+    offscreenLogger.info('Readability instance created, starting parse');
+    
+    const result = reader.parse();
+    
+    offscreenLogger.info('Readability parse completed', {
+      hasResult: !!result,
+      hasTitle: result ? !!result.title : false,
+      hasContent: result ? !!result.content : false,
+      hasTextContent: result ? !!result.textContent : false,
+      titleLength: result && result.title ? result.title.length : 0,
+      contentLength: result && result.content ? result.content.length : 0,
+      textContentLength: result && result.textContent ? result.textContent.length : 0
+    });
+    
+    return result;
+  } catch (error) {
+    offscreenLogger.error('Error during Readability processing:', {
+      error: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+    throw error;
+  }
 }
 
 // Convert HTML to Markdown using Turndown
 function htmlToMarkdown(html) {
   try {
     if (typeof TurndownService === 'undefined') {
-      logger.error('TurndownService is not loaded.');
+      offscreenLogger.error('TurndownService is not loaded.');
       throw new Error('TurndownService is not loaded.');
     }
     const turndownService = new TurndownService({
@@ -111,7 +218,7 @@ function htmlToMarkdown(html) {
     
     return markdown.trim();
   } catch (error) {
-    logger.error('Error converting HTML to Markdown with Turndown:', { errorMessage: error.message, stack: error.stack, originalHtmlLength: html.length });
+    offscreenLogger.error('Error converting HTML to Markdown with Turndown:', { errorMessage: error.message, stack: error.stack, originalHtmlLength: html.length });
     // Fallback to a very basic stripping or return original HTML snippet to avoid breaking flow.
     // For now, returning a simple error message in markdown.
     return `> Error during Markdown conversion: ${error.message}`;
@@ -124,7 +231,7 @@ function decodeHtmlEntities(text) {
     // This function cannot run in a Worker without a 'document' object.
     // Handle this case, perhaps by returning text as is or throwing an error.
     // For Offscreen document, 'document' will be available.
-    logger.warn('decodeHtmlEntities called in an environment without `document`. This should be in an offscreen document.');
+    offscreenLogger.warn('decodeHtmlEntities called in an environment without `document`. This should be in an offscreen document.');
     return text; // Or throw an error, depending on desired behavior
   }
   const textArea = document.createElement('textarea');

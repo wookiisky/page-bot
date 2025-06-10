@@ -21,9 +21,30 @@ const switchMethod = async (url, method, currentMethod, onSuccess, onError) => {
   logger.info(`Current URL: ${url}`);
   logger.info(`Current extraction method before: ${currentMethod}`);
   
-  // 如果已经使用此方法，不执行操作
+  // 如果已经使用此方法，调用成功回调以确保UI状态正确更新
   if (currentMethod === method) {
-    logger.info(`Already using method: ${method}, no action needed`);
+    logger.info(`Already using method: ${method}, calling success callback to maintain UI consistency`);
+    
+    // 尝试获取当前内容并调用成功回调
+    try {
+      // 从状态管理器获取当前提取的内容
+      const currentContent = window.StateManager ? window.StateManager.getStateItem('extractedContent') : null;
+      
+      if (currentContent && typeof onSuccess === 'function') {
+        logger.info(`Calling success callback with existing content (length: ${currentContent.length})`);
+        onSuccess(currentContent, method);
+      } else if (typeof onSuccess === 'function') {
+        logger.info(`No existing content found, calling success callback with empty content`);
+        onSuccess('', method);
+      }
+    } catch (error) {
+      logger.error('Error handling same method click:', error);
+      if (typeof onError === 'function') {
+        onError('Error accessing current content');
+      }
+    }
+    
+    logger.info(`=== SWITCH EXTRACTION METHOD SAME METHOD HANDLED ===`);
     return;
   }
   
@@ -129,8 +150,30 @@ const copyExtractedContent = async (content) => {
   }
 };
 
+/**
+ * Test function for debugging same-method switching
+ * @param {string} method - Method to test
+ * @param {string} currentMethod - Current method
+ */
+const testSameMethodSwitch = (method, currentMethod) => {
+  logger.info('=== TESTING SAME METHOD SWITCH ===');
+  logger.info(`Testing method: ${method}, current: ${currentMethod}`);
+  
+  const mockOnSuccess = (content, extractionMethod) => {
+    logger.info(`Mock success callback called with method: ${extractionMethod}, content length: ${content ? content.length : 0}`);
+  };
+  
+  const mockOnError = (error) => {
+    logger.error(`Mock error callback called with: ${error}`);
+  };
+  
+  switchMethod('test-url', method, currentMethod, mockOnSuccess, mockOnError);
+  logger.info('=== TEST COMPLETED ===');
+};
+
 export {
   switchMethod,
   reExtract,
-  copyExtractedContent
+  copyExtractedContent,
+  testSameMethodSwitch
 }; 

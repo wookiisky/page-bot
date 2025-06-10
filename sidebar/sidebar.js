@@ -584,6 +584,21 @@ function switchExtractionMethod(method) {
     return;
   }
   
+  // Check if the same method is already selected
+  if (state.currentExtractionMethod === method) {
+    logger.info(`Method ${method} is already selected, refreshing content display`);
+    
+    // Just refresh the UI without showing loading for same method clicks
+    const currentContent = StateManager.getStateItem('extractedContent');
+    if (currentContent) {
+      UIManager.displayExtractedContent(currentContent);
+      logger.info('Refreshed content display for same method click');
+    }
+    return;
+  }
+  
+  logger.info(`Switching from ${state.currentExtractionMethod} to ${method}`);
+  
   // Update active button styles
   elements.jinaExtractBtn.classList.toggle('active', method === 'jina');
   elements.readabilityExtractBtn.classList.toggle('active', method === 'readability');
@@ -602,10 +617,16 @@ function switchExtractionMethod(method) {
       StateManager.updateStateItem('currentExtractionMethod', extractionMethod);
       UIManager.displayExtractedContent(content);
       UIManager.hideLoading();
+      logger.info(`Successfully switched to ${extractionMethod} extraction method`);
     },
     // Error callback
     (error) => {
+      logger.error('Error switching extraction method:', error);
       UIManager.showExtractionError(error);
+      
+      // Restore the previous active button state on error
+      elements.jinaExtractBtn.classList.toggle('active', state.currentExtractionMethod === 'jina');
+      elements.readabilityExtractBtn.classList.toggle('active', state.currentExtractionMethod === 'readability');
     }
   );
 }

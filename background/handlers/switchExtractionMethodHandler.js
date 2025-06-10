@@ -25,6 +25,7 @@ async function handleSwitchExtractionMethod(data, serviceLogger, configManager, 
 
     let htmlContent = null;
     if (method === 'readability') {
+        serviceLogger.info('Getting HTML content for readability extraction');
         htmlContent = await new Promise((resolve, reject) => {
             chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                 if (chrome.runtime.lastError) {
@@ -37,6 +38,7 @@ async function handleSwitchExtractionMethod(data, serviceLogger, configManager, 
                     return;
                 }
 
+                serviceLogger.info(`Sending GET_HTML_CONTENT to tab ${tabs[0].id}`);
                 safeSendTabMessage(
                     tabs[0].id,
                     { type: 'GET_HTML_CONTENT' },
@@ -44,16 +46,29 @@ async function handleSwitchExtractionMethod(data, serviceLogger, configManager, 
                         if (chrome.runtime.lastError) {
                             serviceLogger.warn('Error getting HTML from tab (switch method):', chrome.runtime.lastError.message);
                             if (chrome.runtime.lastError.message === "Could not establish connection. Receiving end does not exist.") {
+                                serviceLogger.warn('Content script not connected - this may be the issue');
                                 resolve('CONTENT_SCRIPT_NOT_CONNECTED');
                             } else {
                                 resolve(null);
                             }
                         } else {
+                            serviceLogger.info('Received HTML content response:', {
+                                hasResponse: !!response,
+                                hasHtmlContent: !!(response && response.htmlContent),
+                                htmlLength: response && response.htmlContent ? response.htmlContent.length : 0,
+                                warning: response ? response.warning : null
+                            });
                             resolve(response?.htmlContent || null);
                         }
                     }
                 );
             });
+        });
+        
+        serviceLogger.info('HTML content retrieval completed:', {
+            hasHtmlContent: !!htmlContent,
+            htmlLength: htmlContent && typeof htmlContent === 'string' ? htmlContent.length : 0,
+            isErrorState: htmlContent === 'CONTENT_SCRIPT_NOT_CONNECTED'
         });
     }
 
@@ -73,9 +88,14 @@ async function handleSwitchExtractionMethod(data, serviceLogger, configManager, 
             };
         }
 
-        serviceLogger.info(`Calling contentExtractor.extract with method: ${method}`);
+        serviceLogger.info(`Calling contentExtractor.extract with method: ${method}`, {
+            hasHtmlContent: !!htmlContent,
+            htmlLength: htmlContent ? htmlContent.length : 0
+        });
         const extractedContent = await contentExtractor.extract(url, htmlContent, method, config);
-        serviceLogger.info(`Content extraction result: ${extractedContent ? 'SUCCESS' : 'FAILED'}`);
+        serviceLogger.info(`Content extraction result: ${extractedContent ? 'SUCCESS' : 'FAILED'}`, {
+            extractedLength: extractedContent ? extractedContent.length : 0
+        });
 
         if (extractedContent) {
             serviceLogger.info(`Extracted content length: ${extractedContent.length}`);
@@ -89,7 +109,11 @@ async function handleSwitchExtractionMethod(data, serviceLogger, configManager, 
             return { type: 'CONTENT_UPDATE_ERROR', error: 'Failed to extract content' };
         }
     } catch (error) {
-        serviceLogger.error('Error extracting content in switchExtractionMethodHandler:', error);
+        serviceLogger.error('Error extracting content in switchExtractionMethodHandler:', {
+            error: error.message,
+            stack: error.stack,
+            name: error.name
+        });
         serviceLogger.info(`=== HANDLER SWITCH METHOD EXCEPTION ===`);
         return { type: 'CONTENT_UPDATE_ERROR', error: error.message || 'Failed to extract content' };
     }

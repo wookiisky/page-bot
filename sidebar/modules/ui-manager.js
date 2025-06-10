@@ -130,11 +130,26 @@ const showExtractionError = (error) => {
   let errorMessage = 'Failed to extract content.'; // 默认消息
   if (error) {
     if (error === 'CONTENT_SCRIPT_NOT_CONNECTED') {
-      errorMessage = 'Please reload page and retry.';
+      errorMessage = 'Content script not connected. Please reload the page and try again.';
+    } else if (error === 'page_loading_or_script_issue') {
+      errorMessage = 'Page content not ready or content script issue. Please wait for the page to load fully and try again.';
     } else if (error === 'page_loading') {
       errorMessage = 'Page content not ready, please wait for page to load fully and retry.';
     } else if (typeof error === 'string') {
-      errorMessage = error;
+      // Handle specific readability errors
+      if (error.includes('Readability library not loaded')) {
+        errorMessage = 'Readability library failed to load. Please try again or contact support.';
+      } else if (error.includes('Failed to extract content with Readability')) {
+        errorMessage = 'Readability extraction failed. The page content may not be suitable for extraction. Try refreshing the page.';
+      } else if (error.includes('HTML content is required')) {
+        errorMessage = 'Unable to get page content. Please reload the page and try again.';
+      } else if (error.includes('Processing error')) {
+        errorMessage = 'Content processing error. Please try again or reload the page.';
+      } else if (error.includes('offscreen')) {
+        errorMessage = 'Content processing service unavailable. Please try again.';
+      } else {
+        errorMessage = error;
+      }
     } else if (error.message) {
       errorMessage = error.message;
     } else {
