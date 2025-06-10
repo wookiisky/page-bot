@@ -169,11 +169,19 @@ const switchExtractionMethod = (method) => {
     // Error callback
     (error) => {
       logger.error('Error switching extraction method:', error);
+      // Ensure loading state is properly hidden before showing error
+      UIManager.hideLoading();
       UIManager.showExtractionError(error);
       
       // Restore the previous active button state on error
       elements.jinaExtractBtn.classList.toggle('active', state.currentExtractionMethod === 'jina');
       elements.readabilityExtractBtn.classList.toggle('active', state.currentExtractionMethod === 'readability');
+      
+      // Re-enable extraction buttons after error
+      if (elements.jinaExtractBtn && elements.readabilityExtractBtn) {
+        elements.jinaExtractBtn.disabled = false;
+        elements.readabilityExtractBtn.disabled = false;
+      }
     }
   );
 };
@@ -204,10 +212,21 @@ const reExtractContent = (method) => {
       StateManager.updateStateItem('currentExtractionMethod', extractionMethod);
       UIManager.displayExtractedContent(content);
       UIManager.hideLoading();
+      logger.info(`Successfully re-extracted content with ${extractionMethod} method`);
     },
     // Error callback
     (error) => {
+      logger.error('Error re-extracting content:', error);
+      // Ensure loading state is properly hidden before showing error
+      UIManager.hideLoading();
       UIManager.showExtractionError(error);
+      
+      // Re-enable extraction buttons after error
+      const elements = UIManager.getAllElements();
+      if (elements.jinaExtractBtn && elements.readabilityExtractBtn) {
+        elements.jinaExtractBtn.disabled = false;
+        elements.readabilityExtractBtn.disabled = false;
+      }
     }
   );
 };

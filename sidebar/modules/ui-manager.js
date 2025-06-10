@@ -59,10 +59,39 @@ const getAllElements = () => {
 };
 
 /**
+ * Clear all display states completely
+ */
+const clearAllStates = () => {
+  // Hide all main display elements
+  elements.loadingIndicator.classList.add('hidden');
+  elements.extractedContentElem.classList.add('hidden');
+  elements.extractionError.classList.add('hidden');
+  
+  // Clear any content/text
+  elements.extractionError.textContent = '';
+  elements.extractionError.innerHTML = '';
+  
+  // Clear loading text
+  const loadingText = elements.loadingIndicator.querySelector('.loading-text');
+  if (loadingText) {
+    loadingText.textContent = '';
+  }
+  
+  logger.info('All display states cleared');
+};
+
+/**
  * 显示加载状态
- * @param {string} message - 加载提示消息
+ * @param {string} message - 加载消息
  */
 const showLoading = (message = 'Extracting content...') => {
+  // First, completely clear all states to prevent overlapping
+  clearAllStates();
+  
+  // Force a DOM reflow to ensure changes are applied immediately
+  void elements.loadingIndicator.offsetHeight;
+  
+  // Now show loading state
   elements.loadingIndicator.classList.remove('hidden');
   elements.extractedContentElem.classList.add('hidden');
   elements.extractionError.classList.add('hidden');
@@ -109,6 +138,13 @@ const hideLoading = () => {
  * @param {string|Error} error - 错误信息
  */
 const showExtractionError = (error) => {
+  // First, completely clear all states to prevent overlapping
+  clearAllStates();
+  
+  // Force a DOM reflow to ensure changes are applied immediately
+  void elements.extractionError.offsetHeight;
+  
+  // Now show error state
   elements.loadingIndicator.classList.add('hidden');
   elements.extractedContentElem.classList.add('hidden');
   elements.extractionError.classList.remove('hidden');
@@ -126,6 +162,12 @@ const showExtractionError = (error) => {
   elements.retryExtractBtn.classList.remove('disabled');
   elements.retryExtractBtn.classList.add('enabled');
   elements.retryExtractBtn.disabled = false;
+  
+  // Re-enable extraction method buttons so users can try different methods after error
+  if (elements.jinaExtractBtn && elements.readabilityExtractBtn) {
+    elements.jinaExtractBtn.disabled = false;
+    elements.readabilityExtractBtn.disabled = false;
+  }
   
   let errorMessage = 'Failed to extract content.'; // 默认消息
   if (error) {
@@ -221,6 +263,17 @@ const displayExtractedContent = async (content) => {
     return;
   }
   
+  // First, completely clear all states to prevent overlapping
+  clearAllStates();
+  
+  // Force a DOM reflow to ensure changes are applied immediately
+  void elements.extractedContentElem.offsetHeight;
+  
+  // Now show content
+  elements.loadingIndicator.classList.add('hidden');
+  elements.extractionError.classList.add('hidden');
+  elements.extractedContentElem.classList.remove('hidden');
+  
   // 显示原始markdown内容而不是渲染它
   elements.extractedContentElem.innerHTML = `<pre style="white-space: pre-wrap; word-break: break-word;">${escapeHtml(content)}</pre>`;
   
@@ -310,6 +363,7 @@ export {
   initElements,
   getElement,
   getAllElements,
+  clearAllStates,
   showLoading,
   hideLoading,
   showExtractionError,
