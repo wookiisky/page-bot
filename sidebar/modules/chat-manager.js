@@ -567,6 +567,209 @@ const fixExistingMessageLayouts = (chatContainer) => {
   });
 };
 
+/**
+ * Send user message to LLM
+ * @param {string} userText - User input text
+ * @param {string} imageBase64 - Optional image data
+ * @param {HTMLElement} chatContainer - Chat container element
+ * @param {HTMLElement} userInput - User input element
+ * @param {HTMLElement} sendBtn - Send button element
+ * @param {Object} modelSelector - Model selector instance
+ * @param {Function} onMessageSaved - Callback after message is saved
+ * @returns {Promise<void>}
+ */
+const sendUserMessage = async (userText, imageBase64, chatContainer, userInput, sendBtn, modelSelector, onMessageSaved) => {
+  if (!userText && !imageBase64) {
+    logger.warn('Attempted to send an empty message');
+    return;
+  }
+
+  // Clear input and disable send button
+  userInput.value = '';
+  sendBtn.disabled = true;
+  
+  // Create message timestamp for DOM and message object
+  const messageTimestamp = Date.now();
+  
+  // Optimistically add user message to UI, using same timestamp
+  appendMessageToUI(chatContainer, 'user', userText, imageBase64, false, messageTimestamp);
+  
+  // Get dialog history from DOM
+  const chatHistory = window.ChatHistory.getChatHistoryFromDOM(chatContainer);
+  
+  // Immediately save current dialog history to storage
+  try {
+    await chrome.runtime.sendMessage({
+      type: 'SAVE_CHAT_HISTORY',
+      url: window.StateManager.getStateItem('currentUrl'),
+      chatHistory: chatHistory
+    });
+    logger.info('Chat history saved after adding user message');
+    if (onMessageSaved) onMessageSaved();
+  } catch (error) {
+    logger.error('Failed to save chat history after adding user message:', error);
+  }
+  
+  // Prepare payload for service worker
+  let systemPromptTemplateForPayload = '';
+  let pageContentForPayload = window.StateManager.getStateItem('extractedContent'); // Always pass extractedContent
+  const config = await window.StateManager.getConfig();
+
+  // Default system prompt from config (usually contains {CONTENT})
+  systemPromptTemplateForPayload = config.systemPrompt;
+
+  if (window.StateManager.getStateItem('includePageContent')) {
+    logger.info('Including page content in the message. Extracted content will be sent.');
+    systemPromptTemplateForPayload = systemPromptTemplateForPayload + '\n\nPage Content:\n' + pageContentForPayload; 
+  } else {
+    logger.info('Not including page content in the message. Only using for {CONTENT} replacement.');
+  }
+  
+  // Show loading indicator in chat
+  // Ensure this method is called before sending message to ensure UI is updated in time
+  const loadingMsgId = appendMessageToUI(chatContainer, 'assistant', '<div class="spinner"></div>', null, true);
+  
+  // If image was attached, send and remove
+  if (imageBase64) {
+    const imageHandler = window.ImageHandler;
+    if (imageHandler && imageHandler.removeAttachedImage) {
+      const imagePreviewContainer = document.getElementById('imagePreviewContainer');
+      const imagePreview = document.getElementById('imagePreview');
+      imageHandler.removeAttachedImage(imagePreviewContainer, imagePreview);
+    }
+  }
+
+  try {
+    // Get selected model
+    const selectedModel = modelSelector ? modelSelector.getSelectedModel() : null;
+    
+    // Send message to background script for LLM processing
+    await window.MessageHandler.sendLlmMessage({
+      messages: chatHistory,
+      systemPromptTemplate: systemPromptTemplateForPayload,
+      extractedPageContent: pageContentForPayload,
+      imageBase64: imageBase64,
+      currentUrl: window.StateManager.getStateItem('currentUrl'),
+      extractionMethod: window.StateManager.getStateItem('currentExtractionMethod'),
+      selectedModel: selectedModel
+    });
+  } catch (error) {
+    logger.error('Error sending message to LLM via service worker:', error);
+    handleLlmError(
+      chatContainer,
+      'Failed to send message to the AI. Check service worker logs.',
+      loadingMsgId,
+      () => {
+        // If error occurs, re-enable send button
+        sendBtn.disabled = false;
+      }
+    );
+  }
+};
+
+/**
+ * Handle quick input click
+ * @param {string} displayText - Display text
+ * @param {string} sendTextTemplate - Send text template
+ * @param {HTMLElement} chatContainer - Chat container element
+ * @param {HTMLElement} sendBtn - Send button element
+ * @param {Object} modelSelector - Model selector instance
+ * @param {Function} onMessageSaved - Callback after message is saved
+ * @returns {Promise<void>}
+ */
+const handleQuickInputClick = async (displayText, sendTextTemplate, chatContainer, sendBtn, modelSelector, onMessageSaved) => {
+  // Show loading status
+  sendBtn.disabled = true;
+  
+  // Create message timestamp for DOM and message object
+  const messageTimestamp = Date.now();
+  
+  // Add user message to UI, using same timestamp
+  appendMessageToUI(chatContainer, 'user', displayText, null, false, messageTimestamp);
+  
+  // Show assistant response loading indicator
+  const assistantLoadingMessage = appendMessageToUI(
+    chatContainer,
+    'assistant',
+    '<div class="spinner"></div>',
+    null,
+    true
+  );
+  
+  // Get dialog history from DOM
+  const chatHistory = window.ChatHistory.getChatHistoryFromDOM(chatContainer);
+  
+  // Immediately save current dialog history to storage
+  try {
+    await chrome.runtime.sendMessage({
+      type: 'SAVE_CHAT_HISTORY',
+      url: window.StateManager.getStateItem('currentUrl'),
+      chatHistory: chatHistory
+    });
+    logger.info('Chat history saved after adding quick input message');
+    if (onMessageSaved) onMessageSaved();
+  } catch (error) {
+    logger.error('Failed to save chat history after adding quick input message:', error);
+  }
+  
+  // Prepare data
+  const state = window.StateManager.getState();
+  let systemPromptTemplateForPayload = '';
+  let pageContentForPayload = state.extractedContent;
+  const config = await window.StateManager.getConfig();
+
+  // Get system prompt
+  systemPromptTemplateForPayload = config.systemPrompt;
+
+  if (state.includePageContent) {
+    logger.info('Including page content in quick input message');
+    systemPromptTemplateForPayload = systemPromptTemplateForPayload + '\n\nPage Content:\n' + pageContentForPayload;
+  } else {
+    logger.info('Not including page content in quick input message');
+  }
+
+  try {
+    // Get selected model
+    const selectedModel = modelSelector ? modelSelector.getSelectedModel() : null;
+    
+    // Send message to background script for LLM processing
+    await window.MessageHandler.sendLlmMessage({
+      messages: chatHistory,
+      systemPromptTemplate: systemPromptTemplateForPayload,
+      extractedPageContent: pageContentForPayload,
+      currentUrl: state.currentUrl,
+      extractionMethod: state.currentExtractionMethod,
+      selectedModel: selectedModel
+    });
+  } catch (error) {
+    logger.error('Error sending quick message:', error);
+    // Pass loading message element to handleLlmError for updating it in case of failure
+    handleLlmError(
+      chatContainer,
+      'Failed to send message to LLM',
+      assistantLoadingMessage,
+      () => {
+        sendBtn.disabled = false;
+      }
+    ); 
+  }
+};
+
+/**
+ * Clear conversation and context
+ * @param {HTMLElement} chatContainer - Chat container element
+ * @returns {Promise<void>}
+ */
+const clearConversationAndContext = async (chatContainer) => {
+  // Clear UI
+  window.ChatHistory.clearChatHistory(chatContainer);
+  
+  // Clear from storage (if we have URL)
+  await window.StateManager.clearUrlData(false, true);
+  
+  logger.info('Conversation cleared');
+};
+
 export {
   appendMessageToUI,
   handleStreamChunk,
@@ -577,5 +780,8 @@ export {
   displayChatHistory,
   exportConversation,
   layoutMessageButtons,
-  fixExistingMessageLayouts
+  fixExistingMessageLayouts,
+  sendUserMessage,
+  handleQuickInputClick,
+  clearConversationAndContext
 }; 

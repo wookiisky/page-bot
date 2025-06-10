@@ -51,6 +51,29 @@ const initQuickInputs = (container, quickInputs, onQuickInputClick) => {
 };
 
 /**
+ * Load quick input buttons from config
+ * @param {HTMLElement} container - Quick inputs container
+ * @param {Function} onQuickInputClick - Click handler function
+ * @returns {Promise<void>}
+ */
+const loadQuickInputs = async (container, onQuickInputClick) => {
+  try {
+    const config = await window.StateManager.getConfig();
+    logger.info('Loaded config in loadQuickInputs:', config);
+    
+    if (config && config.quickInputs && config.quickInputs.length > 0) {
+      initQuickInputs(
+        container,
+        config.quickInputs,
+        onQuickInputClick
+      );
+    }
+  } catch (error) {
+    logger.error('Error loading quick inputs:', error);
+  }
+};
+
+/**
  * 处理快速输入按钮点击
  * @param {string} displayText - 按钮显示文本
  * @param {string} sendTextTemplate - 发送的文本模板
@@ -87,5 +110,6 @@ const handleQuickInputClick = (displayText, sendTextTemplate, extractedContent, 
 
 export {
   initQuickInputs,
+  loadQuickInputs,
   handleQuickInputClick
 }; 

@@ -22,24 +22,24 @@ offscreenLogger.info('DOM Parser available:', !!DOMParser);
 
 // Add diagnostic function for debugging
 window.debugReadability = function() {
-  console.log('=== Readability Debug Info ===');
-  console.log('Readability available:', !!self.Readability);
-  console.log('TurndownService available:', !!self.TurndownService);
-  console.log('DOMParser available:', !!DOMParser);
-  console.log('Document available:', !!document);
-  console.log('Window location:', window.location.href);
+  // console.log('=== Readability Debug Info ===');
+  // console.log('Readability available:', !!self.Readability);
+  // console.log('TurndownService available:', !!self.TurndownService);
+  // console.log('DOMParser available:', !!DOMParser);
+  // console.log('Document available:', !!document);
+  // console.log('Window location:', window.location.href);
   
   if (self.Readability) {
     try {
       const testDoc = new DOMParser().parseFromString('<html><body><p>Test</p></body></html>', 'text/html');
       const reader = new self.Readability(testDoc);
       const result = reader.parse();
-      console.log('Test parse result:', !!result);
+      // console.log('Test parse result:', !!result);
     } catch (e) {
       console.error('Test parse error:', e);
     }
   }
-  console.log('=== End Debug Info ===');
+  // console.log('=== End Debug Info ===');
 };
 
 // Listen for messages from the service worker.

@@ -92,7 +92,7 @@ function Readability(doc, options) {
         });
         args.unshift("Reader: (Readability)");
         // eslint-disable-next-line no-console
-        // console.log(...args); // Remove this line
+        // REMOVED: console.log(...args); // Remove this line
       } else if (typeof dump !== "undefined") {
         /* global dump */
         var msg = Array.prototype.map
