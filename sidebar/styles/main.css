@@ -4,6 +4,7 @@
 /* Import all component stylesheets in dependency order */
 @import url('./base.css');
 @import url('./buttons.css');
+@import url('./selectors.css');
 @import url('./header.css');
 @import url('./content-extraction.css');
 @import url('./chat.css');
