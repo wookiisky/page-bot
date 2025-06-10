@@ -1,0 +1,107 @@
+/* Base Styles - Foundation for Page Bot Sidebar */
+
+/* Modern CSS Reset - Based on normalize.css and modern best practices */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* Remove default margin in favour of better control in authored CSS */
+body, h1, h2, h3, h4, h5, h6, p,
+figure, blockquote, dl, dd, ol, ul, li {
+  margin: 0;
+  padding: 0;
+}
+
+/* Prevent font size inflation */
+html {
+  -moz-text-size-adjust: none;
+  -webkit-text-size-adjust: none;
+  text-size-adjust: none;
+}
+
+/* Remove list styles on ul, ol elements */
+ul, ol {
+  list-style: none;
+}
+
+/* Make images easier to work with */
+img, picture {
+  max-width: 100%;
+  display: block;
+}
+
+/* Inherit fonts for inputs and buttons */
+input, button, textarea, select {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+/* CSS Custom Properties - Design tokens for consistent theming */
+:root {
+  --primary-color: #4285f4;
+  --bg-color: #ffffff;
+  --text-color: #202124;
+  --border-color: #dadce0;
+  --hover-color: #f7f9fc;
+  --light-gray: #f1f3f4;
+  --error-color: #d93025;
+  --success-color: #0f9d58;
+  --user-msg-bg: #e6f4ea;
+  --assistant-msg-bg: #f1f3f4;
+  --panel-width: 350px;
+  
+  /* Chrome extension sidebar optimizations */
+  --sidebar-max-width: 420px;
+  --sidebar-min-width: 280px;
+  --content-density: compact;
+  --text-scale: 0.9;
+  --spacing-unit: 2px;
+}
+
+/* Base document styles */
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: var(--text-color);
+  width: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  background-color: var(--bg-color);
+}
+
+/* Main container layout */
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+}
+
+/* Utility classes */
+.hidden {
+  display: none;
+}
+
+/* Material Icons base styling */
+.material-icons {
+  font-family: 'Material Icons';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+} 

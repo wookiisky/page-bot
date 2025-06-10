@@ -1,0 +1,11 @@
+/* Main Stylesheet - Page Bot Chrome Extension Sidebar */
+/* Modular CSS architecture for better maintainability and organization */
+
+/* Import all component stylesheets in dependency order */
+@import url('./base.css');
+@import url('./buttons.css');
+@import url('./header.css');
+@import url('./content-extraction.css');
+@import url('./chat.css');
+@import url('./markdown.css');
+@import url('./input.css'); 

@@ -26,7 +26,15 @@ page-bot/
 │       └── llm_provider/         # LLM提供商实现
 ├── sidebar/                 # 侧边栏UI
 │   ├── sidebar.html         # 侧边栏HTML
-│   ├── sidebar.css          # 侧边栏样式
+│   ├── styles/              # 侧边栏样式模块
+│   │   ├── main.css              # 主样式文件
+│   │   ├── base.css              # 基础样式和设计令牌
+│   │   ├── buttons.css           # 按钮组件样式
+│   │   ├── header.css            # 头部区域样式
+│   │   ├── content-extraction.css # 内容提取样式
+│   │   ├── chat.css              # 聊天界面样式
+│   │   ├── markdown.css          # Markdown渲染样式
+│   │   └── input.css             # 输入区域样式
 │   ├── sidebar.js           # 侧边栏主逻辑
 │   ├── modules/             # 侧边栏核心模块
 │   │   ├── utils.js              # 通用工具函数
@@ -367,7 +375,7 @@ page-bot/
 
 ### 8. 侧边栏 (Sidebar)
 
-文件：`sidebar/sidebar.html`, `sidebar/sidebar.js`, `sidebar/sidebar.css`, `sidebar/modules/`, `sidebar/components/`
+文件：`sidebar/sidebar.html`, `sidebar/sidebar.js`, `sidebar/styles/`, `sidebar/modules/`, `sidebar/components/`
 
 **功能**：
 - 提供用户界面
