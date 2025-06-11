@@ -58,12 +58,14 @@ const setupEventListeners = (elements, modelSelector, onQuickInputClick) => {
   });
   
   // Export conversation
-  elements.exportBtn.addEventListener('click', () => {
+  elements.exportBtn.addEventListener('click', async () => {
     const state = StateManager.getState();
-    ChatManager.exportConversation(
+    // Get chat history from DOM instead of state
+    const chatHistory = window.ChatHistory.getChatHistoryFromDOM(elements.chatContainer);
+    await ChatManager.exportConversation(
       state.currentUrl,
       state.extractedContent,
-      state.chatHistory
+      chatHistory
     );
   });
   
