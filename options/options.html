@@ -108,11 +108,19 @@
           <h2>Quick Input Buttons</h2>
           <p>Add pre-defined messages that will appear as quick input buttons.</p>
           
-          <div id="quickInputsContainer">
-            <!-- Quick input items will be added here dynamically -->
+          <div class="quick-inputs-section">
+            <div class="quick-inputs-header">
+              <h3>Quick Input Configurations</h3>
+              <button type="button" id="addQuickInputBtn" class="add-model-btn-inline">
+                <i class="material-icons">add</i>
+                Add Quick Input
+              </button>
+            </div>            
+            
+            <div id="quickInputsContainer" class="quick-inputs-container">
+              <!-- Quick input items will be added here dynamically -->
+            </div>
           </div>
-          
-          <button type="button" id="addQuickInputBtn" class="secondary-btn">+ Add Quick Input</button>
         </section>
       </form>
       
@@ -128,15 +136,25 @@
   <!-- Quick Input Template (hidden) -->
   <template id="quickInputTemplate">
     <div class="quick-input-item">
-      <div class="form-group">
-        <label>Display Text</label>
-        <input type="text" class="quick-input-display" placeholder="Button text (e.g. 'Summarize')">
+      <div class="quick-input-details-column">
+        <div class="quick-input-form">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Display Text</label>
+              <input type="text" class="quick-input-display" placeholder="Button text (e.g. 'Summarize')">
+            </div>
+            <div class="form-group">
+              <label>Send Text</label>
+              <textarea class="quick-input-send" rows="3" placeholder="Message to send when clicked (use {CONTENT} placeholder)"></textarea>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="form-group">
-        <label>Send Text</label>
-        <textarea class="quick-input-send" rows="3" placeholder="Message to send when clicked (use {CONTENT} placeholder)"></textarea>
+      <div class="quick-input-actions-column">
+        <button type="button" class="remove-quick-input-btn icon-btn" title="Remove Quick Input">
+          <i class="material-icons">delete</i>
+        </button>
       </div>
-      <button type="button" class="remove-quick-input-btn">Remove</button>
     </div>
   </template>
   

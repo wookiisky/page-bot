@@ -71,7 +71,8 @@ export class QuickInputsManager {
     
     // Quick input remove button delegation
     domElements.quickInputsContainer.addEventListener('click', (e) => {
-      if (e.target.classList.contains('remove-quick-input-btn')) {
+      if (e.target.classList.contains('remove-quick-input-btn') || 
+          e.target.closest('.remove-quick-input-btn')) {
         this.removeQuickInput(e.target.closest('.quick-input-item'));
       }
     });
