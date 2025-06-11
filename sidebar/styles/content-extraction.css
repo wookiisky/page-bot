@@ -14,7 +14,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 6px 12px;
+  padding: 4px 8px;
   font-size: 14px;
   font-weight: 500;
   flex-shrink: 0;
@@ -22,7 +22,7 @@
 
 .content-container {
   position: relative;
-  padding: 0 12px 6px;
+  padding: 0 8px 4px;
   overflow-y: auto;
   flex-grow: 1;
 }
@@ -30,16 +30,14 @@
 .extracted-content {
   font-size: 14px;
   line-height: 1.5;
-  overflow-y: auto;
-  max-height: 100%;
   background-color: var(--light-gray);
-  padding: 8px;
+  padding: 4px;
   border-radius: 4px;
 }
 
 /* Loading states */
 .loading-indicator {
-  padding: 16px;
+  padding: 8px;
   text-align: center;
 }
 
@@ -110,13 +108,13 @@
 /* Error states */
 .extraction-error {
   font-size: 14px;
-  padding: 12px;
+  padding: 8px;
   text-align: center;
   color: var(--error-color);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
 }
 
 /* Spinner for loading states */
@@ -170,10 +168,10 @@
 /* Responsive content section adjustments */
 @media (max-width: 280px) {
   .content-header {
-    padding: 4px 8px;
+    padding: 2px 4px;
   }
   
   .content-container {
-    padding: 0 8px 4px;
+    padding: 0 4px 2px;
   }
 } 
