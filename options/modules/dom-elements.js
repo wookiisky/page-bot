@@ -28,6 +28,9 @@ export const domElements = {
   
   // Action buttons
   addQuickInputBtn: document.getElementById('addQuickInputBtn'),
+  exportConfigBtn: document.getElementById('exportConfigBtn'),
+  importConfigBtn: document.getElementById('importConfigBtn'),
+  importConfigFile: document.getElementById('importConfigFile'),
   resetBtn: document.getElementById('resetBtn')
 };
 

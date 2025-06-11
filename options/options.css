@@ -217,6 +217,24 @@ small {
   justify-content: flex-end;
   gap: 0.4rem;
   margin-top: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* Config import/export buttons - using secondary-btn style */
+#exportConfigBtn,
+#importConfigBtn {
+  /* Using the same style as secondary-btn */
+  background-color: #ffffff;
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+}
+
+#exportConfigBtn:hover,
+#importConfigBtn:hover {
+  background-color: #f8f9fa;
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-color: #1976d2;
 }
 
 .primary-btn, .secondary-btn {

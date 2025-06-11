@@ -121,6 +121,26 @@ class OptionsPage {
     this.domElements.clearChatsCacheBtn.addEventListener('click', () => {
       this.clearChatsCache();
     });
+
+    // Export configuration button
+    this.domElements.exportConfigBtn.addEventListener('click', () => {
+      this.exportConfiguration();
+    });
+
+    // Import configuration button
+    this.domElements.importConfigBtn.addEventListener('click', () => {
+      this.domElements.importConfigFile.click();
+    });
+
+    // Import configuration file input
+    this.domElements.importConfigFile.addEventListener('change', (event) => {
+      const file = event.target.files[0];
+      if (file) {
+        this.importConfiguration(file);
+        // Reset file input
+        event.target.value = '';
+      }
+    });
   }
   
   // Setup auto-save listeners for form inputs
@@ -256,6 +276,28 @@ class OptionsPage {
     } catch (error) {
       logger.error('Error clearing chat cache:', error);
       alert('Error clearing chat cache. See console for details.');
+    }
+  }
+
+  // Export configuration to JSON file
+  async exportConfiguration() {
+    logger.info('Exporting configuration');
+    try {
+      await ConfigManager.exportConfiguration(this.domElements, this.modelManager);
+    } catch (error) {
+      logger.error('Error in export configuration:', error);
+      alert('Failed to export configuration. Please check the console for details.');
+    }
+  }
+
+  // Import configuration from JSON file
+  async importConfiguration(file) {
+    logger.info('Importing configuration');
+    try {
+      await ConfigManager.importConfiguration(file, this.domElements, this.modelManager);
+    } catch (error) {
+      logger.error('Error in import configuration:', error);
+      alert('Failed to import configuration. Please check the console for details.');
     }
   }
 }
