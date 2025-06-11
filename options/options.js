@@ -17,7 +17,10 @@ class OptionsPage {
   constructor() {
     this.domElements = domElements;
     this.domGroups = domGroups;
-    this.modelManager = new ModelManager(domElements);
+    this.autoSaveTimeout = null;
+    this.autoSaveDelay = 1000; // 1 second delay for auto-save
+    // Initialize ModelManager with auto-save callback
+    this.modelManager = new ModelManager(domElements, () => this.debouncedAutoSave());
   }
   
   // Initialize the options page
@@ -43,8 +46,8 @@ class OptionsPage {
       // Populate form with loaded config
       FormHandler.populateForm(config, this.domElements);
       
-      // Initialize model manager with config
-      this.modelManager.init(config);
+      // Initialize model manager with config and auto-save callback
+      this.modelManager.init(config, () => this.debouncedAutoSave());
       
       // Render quick inputs
       QuickInputsManager.renderQuickInputs(config.quickInputs || [], this.domElements);
@@ -54,19 +57,50 @@ class OptionsPage {
     }
   }
   
+  // Debounced auto-save function
+  debouncedAutoSave() {
+    if (this.autoSaveTimeout) {
+      clearTimeout(this.autoSaveTimeout);
+    }
+    
+    this.autoSaveTimeout = setTimeout(() => {
+      this.autoSaveSettings();
+    }, this.autoSaveDelay);
+  }
+  
+  // Auto-save settings with validation
+  async autoSaveSettings() {
+    logger.info('Performing auto-save');
+    
+    // Build config from form
+    const config = ConfigManager.buildConfigFromForm(this.domElements, this.modelManager);
+    
+    // Get quick inputs and validate them
+    const quickInputs = QuickInputsManager.getQuickInputs(this.domElements);
+    config.quickInputs = quickInputs;
+    
+    // Save config
+    const success = await ConfigManager.saveSettings(config);
+    
+    if (success) {
+      logger.info('Settings auto-saved successfully');
+    } else {
+      logger.error('Failed to auto-save settings');
+    }
+  }
+  
   // Set up all event listeners
   setupEventListeners() {
     // Default extraction method toggle
     this.domElements.defaultExtractionMethod.addEventListener('change', () => {
       FormHandler.toggleExtractionMethodSettings(this.domElements, this.domGroups);
+      this.debouncedAutoSave();
     });
     
-    // Model manager will handle its own event listeners
+    // Auto-save on form input changes
+    this.setupAutoSaveListeners();
     
-    // Save settings button
-    this.domElements.saveBtn.addEventListener('click', () => {
-      this.saveSettings();
-    });
+    // Model manager will handle its own event listeners and auto-save
     
     // Reset settings button
     this.domElements.resetBtn.addEventListener('click', () => {
@@ -74,7 +108,9 @@ class OptionsPage {
     });
     
     // Set up quick inputs event listeners
-    QuickInputsManager.setupEventListeners(this.domElements);
+    QuickInputsManager.setupEventListeners(this.domElements, () => {
+      this.debouncedAutoSave();
+    });
 
     // Clear Pages Cache button
     this.domElements.clearPagesCacheBtn.addEventListener('click', () => {
@@ -84,6 +120,26 @@ class OptionsPage {
     // Clear Chats Cache button
     this.domElements.clearChatsCacheBtn.addEventListener('click', () => {
       this.clearChatsCache();
+    });
+  }
+  
+  // Setup auto-save listeners for form inputs
+  setupAutoSaveListeners() {
+    const inputs = [
+      this.domElements.jinaApiKey,
+      this.domElements.jinaResponseTemplate,
+      this.domElements.contentDisplayHeight,
+      this.domElements.systemPrompt,
+      this.domElements.defaultModelSelect
+    ];
+    
+    inputs.forEach(input => {
+      if (input) {
+        const eventType = input.type === 'textarea' ? 'input' : 'change';
+        input.addEventListener(eventType, () => {
+          this.debouncedAutoSave();
+        });
+      }
     });
   }
   
@@ -200,22 +256,6 @@ class OptionsPage {
     } catch (error) {
       logger.error('Error clearing chat cache:', error);
       alert('Error clearing chat cache. See console for details.');
-    }
-  }
-  
-  // Save settings to storage
-  async saveSettings() {
-    // Build config from form
-    const config = ConfigManager.buildConfigFromForm(this.domElements, this.modelManager);
-    
-    // Add quick inputs to config
-    config.quickInputs = QuickInputsManager.getQuickInputs(this.domElements);
-    
-    // Save config
-    const success = await ConfigManager.saveSettings(config);
-    
-    if (success) {
-      FormHandler.showSaveNotification(this.domElements);
     }
   }
 }

@@ -63,7 +63,7 @@ export class QuickInputsManager {
   }
   
   // Set up event listeners for quick inputs
-  static setupEventListeners(domElements) {
+  static setupEventListeners(domElements, autoSaveCallback = null) {
     // Add quick input button
     domElements.addQuickInputBtn.addEventListener('click', () => {
       this.addQuickInput(domElements);
@@ -74,7 +74,20 @@ export class QuickInputsManager {
       if (e.target.classList.contains('remove-quick-input-btn') || 
           e.target.closest('.remove-quick-input-btn')) {
         this.removeQuickInput(e.target.closest('.quick-input-item'));
+        if (autoSaveCallback) {
+          autoSaveCallback();
+        }
       }
     });
+    
+    // Auto-save on input changes for quick inputs
+    if (autoSaveCallback) {
+      domElements.quickInputsContainer.addEventListener('input', (e) => {
+        if (e.target.classList.contains('quick-input-display') || 
+            e.target.classList.contains('quick-input-send')) {
+          autoSaveCallback();
+        }
+      });
+    }
   }
 } 

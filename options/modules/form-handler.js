@@ -39,13 +39,4 @@ export class FormHandler {
     // This method is no longer needed with the new model management system
     // Kept for backward compatibility
   }
-  
-  // Show save notification
-  static showSaveNotification(domElements) {
-    domElements.saveNotification.classList.add('show');
-    
-    setTimeout(() => {
-      domElements.saveNotification.classList.remove('show');
-    }, 3000);
-  }
 } 

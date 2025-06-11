@@ -6,7 +6,6 @@ export const domElements = {
   form: document.getElementById('settingsForm'),
   quickInputsContainer: document.getElementById('quickInputsContainer'),
   quickInputTemplate: document.getElementById('quickInputTemplate'),
-  saveNotification: document.getElementById('saveNotification'),
   
   // Content extraction elements
   defaultExtractionMethod: document.getElementById('defaultExtractionMethod'),
@@ -29,7 +28,6 @@ export const domElements = {
   
   // Action buttons
   addQuickInputBtn: document.getElementById('addQuickInputBtn'),
-  saveBtn: document.getElementById('saveBtn'),
   resetBtn: document.getElementById('resetBtn')
 };
 

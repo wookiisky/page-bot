@@ -5,16 +5,20 @@
 const logger = window.logger ? window.logger.createModuleLogger('ModelManager') : console;
 
 export class ModelManager {
-  constructor(domElements) {
+  constructor(domElements, autoSaveCallback = null) {
     this.domElements = domElements;
     this.models = [];
     this.draggedItem = null;
+    this.autoSaveCallback = autoSaveCallback;
     this.setupDragAndDrop();
   }
 
   // Initialize model configurations
-  init(config) {
+  init(config, autoSaveCallback = null) {
     this.models = config.llm?.models || [];
+    if (autoSaveCallback) {
+      this.autoSaveCallback = autoSaveCallback;
+    }
     this.renderModels();
     this.updateDefaultModelSelector();
   }
@@ -152,6 +156,7 @@ export class ModelManager {
     this.renderModels();
     this.updateDefaultModelSelector();
     logger.info('Added new model configuration');
+    // Don't auto-save new model until it's properly configured
   }
 
   // Remove a model configuration
@@ -161,6 +166,9 @@ export class ModelManager {
       this.renderModels();
       this.updateDefaultModelSelector();
       logger.info(`Removed model configuration at index ${index}`);
+      if (this.autoSaveCallback) {
+        this.autoSaveCallback();
+      }
     }
   }
 
@@ -170,6 +178,9 @@ export class ModelManager {
     this.renderModels();
     this.updateDefaultModelSelector();
     logger.info(`Toggled model ${index} enabled state to ${enabled}`);
+    if (this.autoSaveCallback && this.isModelComplete(this.models[index])) {
+      this.autoSaveCallback();
+    }
   }
 
   // Update a model field
@@ -179,6 +190,9 @@ export class ModelManager {
       this.updateDefaultModelSelector();
     }
     logger.debug(`Updated model ${index} field ${field} to ${value}`);
+    if (this.autoSaveCallback && this.isModelComplete(this.models[index])) {
+      this.autoSaveCallback();
+    }
   }
 
   // Update model provider and re-render specific fields
@@ -196,6 +210,27 @@ export class ModelManager {
 
     this.renderModels();
     logger.info(`Updated model ${index} provider to ${provider}`);
+    if (this.autoSaveCallback && this.isModelComplete(this.models[index])) {
+      this.autoSaveCallback();
+    }
+  }
+
+  // Check if a model has all required fields filled
+  isModelComplete(model) {
+    if (!model.name || !model.apiKey || !model.model) {
+      return false;
+    }
+    
+    if (model.provider === 'openai' && !model.baseUrl) {
+      return false;
+    }
+    
+    return true;
+  }
+
+  // Get all complete model configurations (only models with all required fields)
+  getCompleteModels() {
+    return this.models.filter(model => this.isModelComplete(model));
   }
 
   // Update the default model selector dropdown
@@ -253,12 +288,21 @@ export class ModelManager {
           this.updateModelProvider(index, e.target.value);
         });
       } else {
-        // Handle regular field updates
+        // Handle regular field updates on change
         input.addEventListener('change', (e) => {
           const index = parseInt(e.target.dataset.modelIndex);
           const field = e.target.dataset.field;
           this.updateModelField(index, field, e.target.value);
         });
+        
+        // Handle real-time updates on input for text fields
+        if (input.type === 'text' || input.type === 'password') {
+          input.addEventListener('input', (e) => {
+            const index = parseInt(e.target.dataset.modelIndex);
+            const field = e.target.dataset.field;
+            this.updateModelField(index, field, e.target.value);
+          });
+        }
       }
     });
   }
@@ -347,6 +391,9 @@ export class ModelManager {
       this.models = newOrder;
       this.renderModels();
       logger.info('Reordered model configurations');
+      if (this.autoSaveCallback) {
+        this.autoSaveCallback();
+      }
     } else {
       logger.warn('Model reordering failed: length mismatch');
       this.renderModels(); // Re-render to restore original order

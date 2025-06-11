@@ -87,7 +87,7 @@ export class ConfigManager {
       
       llm: {
         defaultModelId: modelManager.getDefaultModelId(),
-        models: modelManager.getModels()
+        models: modelManager.getCompleteModels() // Only save complete models
       },
       systemPrompt: domElements.systemPrompt.value,
       contentDisplayHeight: parseInt(domElements.contentDisplayHeight.value) || 300
