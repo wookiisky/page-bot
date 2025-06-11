@@ -29,103 +29,111 @@ export class ModelManager {
       container.appendChild(modelElement);
     });
 
-    // Add "Add New Model" button
-    const addButton = this.createAddModelButton();
-    container.appendChild(addButton);
-
     // Setup event listeners for the newly created elements
     this.setupModelEventListeners();
+    
+    // Setup the inline add button event listener
+    this.setupAddButtonListener();
   }
 
   // Create a single model configuration element
   createModelElement(model, index) {
     const div = document.createElement('div');
-    div.className = 'model-config-item';
+    div.className = `model-config-item ${!model.enabled ? 'disabled' : ''}`;
     div.draggable = true;
     div.dataset.index = index;
 
+    // Create three columns: drag-handle, details, actions
     div.innerHTML = `
-      <div class="model-header">
+      <div class="drag-handle-column">
         <div class="drag-handle">
           <i class="material-icons">drag_indicator</i>
         </div>
-        <div class="model-info">
-          <span class="model-name">${model.name || 'Unnamed Model'}</span>
-          <span class="model-provider">${model.provider}</span>
-        </div>
-        <div class="model-actions">
-          <label class="toggle-switch">
-            <input type="checkbox" ${model.enabled ? 'checked' : ''} 
-                   data-model-index="${index}" class="model-toggle">
-            <span class="slider"></span>
-          </label>
-          <button type="button" class="remove-model-btn" 
-                  data-model-index="${index}">
-            <i class="material-icons">delete</i>
-          </button>
+      </div>
+      <div class="model-details-column">
+        <div class="model-form">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Display Name</label>
+              <input type="text" class="model-name-input" value="${model.name || ''}"
+                     data-model-index="${index}" data-field="name">
+            </div>
+            <div class="form-group">
+              <label>Provider</label>
+              <select class="model-provider-select"
+                      data-model-index="${index}">
+                <option value="openai" ${model.provider === 'openai' ? 'selected' : ''}>OpenAI Compatible</option>
+                <option value="gemini" ${model.provider === 'gemini' ? 'selected' : ''}>Google Gemini</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-grid-single">
+            <div class="form-group">
+              <label>API Key</label>
+              <input type="password" class="model-api-key" value="${model.apiKey || ''}"
+                     data-model-index="${index}" data-field="apiKey">
+            </div>
+          </div>
+          <div class="form-grid-single model-specific-fields" id="model-specific-${index}">
+            ${this.renderModelSpecificFields(model, index)}
+          </div>
         </div>
       </div>
-      <div class="model-form ${model.enabled ? 'expanded' : 'collapsed'}">
-        <div class="form-group">
-          <label>Model Name</label>
-          <input type="text" class="model-name-input" value="${model.name || ''}" 
-                 data-model-index="${index}" data-field="name">
-        </div>
-        <div class="form-group">
-          <label>Provider</label>
-          <select class="model-provider-select" 
-                  data-model-index="${index}">
-            <option value="openai" ${model.provider === 'openai' ? 'selected' : ''}>OpenAI Compatible</option>
-            <option value="gemini" ${model.provider === 'gemini' ? 'selected' : ''}>Google Gemini</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>API Key</label>
-          <input type="password" class="model-api-key" value="${model.apiKey || ''}" 
-                 data-model-index="${index}" data-field="apiKey">
-        </div>
-        ${this.renderProviderSpecificFields(model, index)}
+      <div class="model-actions-column">
+        <label class="toggle-switch">
+          <input type="checkbox" ${model.enabled ? 'checked' : ''}
+                 data-model-index="${index}" class="model-toggle">
+          <span class="slider round"></span>
+        </label>
+        <button type="button" class="remove-model-btn icon-btn"
+                data-model-index="${index}" title="Remove Model">
+          <i class="material-icons">delete</i>
+        </button>
       </div>
     `;
-
     return div;
   }
 
-  // Render provider-specific fields
-  renderProviderSpecificFields(model, index) {
+  // Render model-specific fields
+  renderModelSpecificFields(model, index) {
     if (model.provider === 'openai') {
       return `
-        <div class="form-group">
-          <label>Base URL</label>
-          <input type="text" class="model-base-url" value="${model.baseUrl || 'https://api.openai.com'}" 
-                 data-model-index="${index}" data-field="baseUrl">
-        </div>
-        <div class="form-group">
-          <label>Model</label>
-          <input type="text" class="model-model" value="${model.model || 'gpt-3.5-turbo'}" 
-                 data-model-index="${index}" data-field="model">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Base URL</label>
+            <input type="text" class="model-base-url" value="${model.baseUrl || 'https://api.openai.com'}"
+                   data-model-index="${index}" data-field="baseUrl">
+          </div>
+          <div class="form-group">
+            <label>Model</label>
+            <input type="text" class="model-model" value="${model.model || 'gpt-3.5-turbo'}"
+                   data-model-index="${index}" data-field="model">
+          </div>
         </div>
       `;
     } else if (model.provider === 'gemini') {
       return `
-        <div class="form-group">
-          <label>Model</label>
-          <input type="text" class="model-model" value="${model.model || 'gemini-pro'}" 
-                 data-model-index="${index}" data-field="model">
+        <div class="form-grid-single">
+          <div class="form-group">
+            <label>Model</label>
+            <input type="text" class="model-model" value="${model.model || 'gemini-pro'}"
+                   data-model-index="${index}" data-field="model">
+          </div>
         </div>
       `;
     }
     return '';
   }
 
-  // Create "Add New Model" button
-  createAddModelButton() {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'add-model-btn';
-    button.innerHTML = '<i class="material-icons">add</i> Add New Model';
-    button.addEventListener('click', () => this.addNewModel());
-    return button;
+  // Setup inline add button event listener
+  setupAddButtonListener() {
+    const addButton = document.getElementById('addModelBtn');
+    if (addButton) {
+      // Remove any existing event listeners to avoid duplicates
+      addButton.replaceWith(addButton.cloneNode(true));
+      const newAddButton = document.getElementById('addModelBtn');
+      newAddButton.addEventListener('click', () => this.addNewModel());
+    }
   }
 
   // Add a new model configuration
