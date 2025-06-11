@@ -1,5 +1,5 @@
 /**
- * content-extractor.js - 内容提取功能
+ * content-extractor.js - Content extraction functionality
  */
 
 import { createLogger } from './utils.js';
@@ -8,12 +8,12 @@ import { switchExtractionMethod, reExtractContent } from './message-handler.js';
 const logger = createLogger('ContentExtractor');
 
 /**
- * 切换提取方法
- * @param {string} url - 页面URL
- * @param {string} method - 提取方法(readability或jina)
- * @param {string} currentMethod - 当前提取方法
- * @param {Function} onSuccess - 成功回调
- * @param {Function} onError - 错误回调
+ * Switch extraction method
+ * @param {string} url - Page URL
+ * @param {string} method - Extraction method (readability or jina)
+ * @param {string} currentMethod - Current extraction method
+ * @param {Function} onSuccess - Success callback
+ * @param {Function} onError - Error callback
  */
 const switchMethod = async (url, method, currentMethod, onSuccess, onError) => {
   logger.info(`=== SWITCH EXTRACTION METHOD START ===`);
@@ -21,13 +21,13 @@ const switchMethod = async (url, method, currentMethod, onSuccess, onError) => {
   logger.info(`Current URL: ${url}`);
   logger.info(`Current extraction method before: ${currentMethod}`);
   
-  // 如果已经使用此方法，调用成功回调以确保UI状态正确更新
+  // If already using this method, call success callback to ensure UI state is correctly updated
   if (currentMethod === method) {
     logger.info(`Already using method: ${method}, calling success callback to maintain UI consistency`);
     
-    // 尝试获取当前内容并调用成功回调
+    // Try to get current content and call success callback
     try {
-      // 从状态管理器获取当前提取的内容
+      // Get current extracted content from state manager
       const currentContent = window.StateManager ? window.StateManager.getStateItem('extractedContent') : null;
       
       if (currentContent && typeof onSuccess === 'function') {
@@ -49,13 +49,13 @@ const switchMethod = async (url, method, currentMethod, onSuccess, onError) => {
   }
   
   try {
-    // 调用消息处理器的方法切换提取方法
+    // Call message handler method to switch extraction method
     const result = await switchExtractionMethod(url, method);
     
     if (result.success) {
       logger.info(`Content updated successfully with method: ${result.extractionMethod || method}`);
       
-      // 调用成功回调
+      // Call success callback
       if (typeof onSuccess === 'function') {
         onSuccess(result.content, result.extractionMethod || method);
       }
@@ -64,7 +64,7 @@ const switchMethod = async (url, method, currentMethod, onSuccess, onError) => {
     } else {
       logger.info(`Content update error: ${result.error}`);
       
-      // 调用错误回调
+      // Call error callback
       if (typeof onError === 'function') {
         onError(result.error);
       }
@@ -74,7 +74,7 @@ const switchMethod = async (url, method, currentMethod, onSuccess, onError) => {
   } catch (error) {
     logger.error('Error switching extraction method:', error);
     
-    // 调用错误回调
+    // Call error callback
     if (typeof onError === 'function') {
       onError('Failed to communicate with the background script');
     }
@@ -84,11 +84,11 @@ const switchMethod = async (url, method, currentMethod, onSuccess, onError) => {
 };
 
 /**
- * 重新提取内容
- * @param {string} url - 页面URL
- * @param {string} method - 提取方法
- * @param {Function} onSuccess - 成功回调
- * @param {Function} onError - 错误回调
+ * Re-extract content
+ * @param {string} url - Page URL
+ * @param {string} method - Extraction method
+ * @param {Function} onSuccess - Success callback
+ * @param {Function} onError - Error callback
  */
 const reExtract = async (url, method, onSuccess, onError) => {
   logger.info(`=== RE-EXTRACT START ===`);
@@ -101,7 +101,7 @@ const reExtract = async (url, method, onSuccess, onError) => {
     if (result.success) {
       logger.info(`Content updated successfully with method: ${result.extractionMethod || method}`);
       
-      // 调用成功回调
+      // Call success callback
       if (typeof onSuccess === 'function') {
         onSuccess(result.content, result.extractionMethod || method);
       }
@@ -110,7 +110,7 @@ const reExtract = async (url, method, onSuccess, onError) => {
     } else {
       logger.info(`Content update error: ${result.error}`);
       
-      // 调用错误回调
+      // Call error callback
       if (typeof onError === 'function') {
         onError(result.error);
       }
@@ -120,7 +120,7 @@ const reExtract = async (url, method, onSuccess, onError) => {
   } catch (error) {
     logger.error('Error re-extracting content:', error);
     
-    // 调用错误回调
+    // Call error callback
     if (typeof onError === 'function') {
       onError('Failed to communicate with the background script');
     }
@@ -130,9 +130,9 @@ const reExtract = async (url, method, onSuccess, onError) => {
 };
 
 /**
- * 复制提取的内容到剪贴板
- * @param {string} content - 提取的内容
- * @returns {Promise<boolean>} 是否成功复制
+ * Copy extracted content to clipboard
+ * @param {string} content - Extracted content
+ * @returns {Promise<boolean>} Whether copy was successful
  */
 const copyExtractedContent = async (content) => {
   if (!content) {

@@ -1,12 +1,12 @@
 /**
- * resize-handler.js - 处理UI尺寸调整
+ * resize-handler.js - Handle UI resizing
  */
 
 import { createLogger } from './utils.js';
 
 const logger = createLogger('ResizeHandler');
 
-// 尺寸调整状态变量
+// Resize state variables
 let isResizing = false;
 let startY = 0;
 let startHeight = 0;
@@ -15,10 +15,10 @@ let inputStartY = 0;
 let inputStartHeight = 0;
 
 /**
- * 初始化内容区域大小调整处理
- * @param {HTMLElement} contentSection - 内容区域元素
- * @param {HTMLElement} resizeHandle - 尺寸调整句柄元素
- * @param {Function} saveCallback - 保存尺寸的回调函数
+ * Initialize content area resize handler
+ * @param {HTMLElement} contentSection - Content area element
+ * @param {HTMLElement} resizeHandle - Resize handle element
+ * @param {Function} saveCallback - Callback to save height
  */
 const initContentResize = (contentSection, resizeHandle, saveCallback) => {
   if (!contentSection || !resizeHandle) {
@@ -26,21 +26,21 @@ const initContentResize = (contentSection, resizeHandle, saveCallback) => {
     return;
   }
   
-  // 开始调整大小
+  // Start resizing
   resizeHandle.addEventListener('mousedown', (e) => {
     isResizing = true;
     startY = e.clientY;
     startHeight = contentSection.offsetHeight;
     e.preventDefault();
     
-    // 添加视觉反馈
+    // Add visual feedback
     document.body.style.cursor = 'ns-resize';
     document.body.style.userSelect = 'none';
     
     logger.info('Content resize started, initial height:', startHeight);
   });
   
-  // 监听全局鼠标移动和释放事件
+  // Listen for global mousemove and mouseup events
   document.addEventListener('mousemove', (e) => {
     if (isResizing) {
       doResize(e, contentSection, null, saveCallback);
@@ -56,10 +56,10 @@ const initContentResize = (contentSection, resizeHandle, saveCallback) => {
 };
 
 /**
- * 初始化输入框大小调整处理
- * @param {HTMLElement} userInput - 输入框元素
- * @param {HTMLElement} inputResizeHandle - 输入框尺寸调整句柄元素
- * @param {Function} layoutCallback - 更新布局的回调函数
+ * Initialize input box resize handler
+ * @param {HTMLElement} userInput - Input box element
+ * @param {HTMLElement} inputResizeHandle - Input resize handle element
+ * @param {Function} layoutCallback - Callback to update layout
  */
 const initInputResize = (userInput, inputResizeHandle, layoutCallback) => {
   if (!userInput || !inputResizeHandle) {
@@ -67,21 +67,21 @@ const initInputResize = (userInput, inputResizeHandle, layoutCallback) => {
     return;
   }
   
-  // 开始调整输入框大小
+  // Start resizing input box
   inputResizeHandle.addEventListener('mousedown', (e) => {
     isInputResizing = true;
     inputStartY = e.clientY;
     inputStartHeight = userInput.offsetHeight;
     e.preventDefault();
     
-    // 添加视觉反馈
+    // Add visual feedback
     document.body.style.cursor = 'ns-resize';
     document.body.style.userSelect = 'none';
     
     logger.info('Input resize started, initial height:', inputStartHeight);
   });
   
-  // 添加专用于输入框调整的事件监听器
+  // Add event listeners specific for input resizing
   document.addEventListener('mousemove', (e) => {
     if (isInputResizing) {
       doResize(e, null, userInput, layoutCallback);
@@ -97,21 +97,21 @@ const initInputResize = (userInput, inputResizeHandle, layoutCallback) => {
 };
 
 /**
- * 执行尺寸调整
- * @param {MouseEvent} e - 鼠标事件
- * @param {HTMLElement} contentSection - 内容区域元素
- * @param {HTMLElement} userInput - 输入框元素
- * @param {Function} layoutCallback - 更新布局的回调函数
+ * Perform resizing
+ * @param {MouseEvent} e - Mouse event
+ * @param {HTMLElement} contentSection - Content area element
+ * @param {HTMLElement} userInput - Input box element
+ * @param {Function} layoutCallback - Callback to update layout
  */
 const doResize = (e, contentSection, userInput, layoutCallback) => {
-  // 内容区域尺寸调整逻辑
+  // Content area resize logic
   if (isResizing && contentSection) {
     const deltaY = e.clientY - startY;
     const newHeight = startHeight + deltaY;
     
-    // 设置最小和最大高度
+    // Set min and max height
     const minHeight = 80;
-    const maxHeight = window.innerHeight * 0.7; // 最大为窗口高度的70%
+    const maxHeight = window.innerHeight * 0.7; // Max 70% of window height
     
     if (newHeight >= minHeight && newHeight <= maxHeight) {
       contentSection.style.height = `${newHeight}px`;
@@ -120,29 +120,29 @@ const doResize = (e, contentSection, userInput, layoutCallback) => {
     }
   }
   
-  // 输入框尺寸调整逻辑
+  // Input box resize logic
   if (isInputResizing && userInput && typeof layoutCallback === 'function') {
     const deltaY = e.clientY - inputStartY;
-    // 调整增长因子使拖动感觉更自然
+    // Adjust growth factor for more natural dragging
     const newHeight = Math.round(inputStartHeight - (deltaY * 1.2));
     
-    // 设置最小和最大高度
+    // Set min and max height
     const minHeight = 30;
     const maxHeight = 200;
     
     if (newHeight >= minHeight && newHeight <= maxHeight) {
-      // 使用整数值避免布局问题
+      // Use integer value to avoid layout issues
       const roundedHeight = Math.floor(newHeight);
       userInput.style.height = `${roundedHeight}px`;
-      // 实时输入高度更新
+      // Real-time input height update
       userInput.style.transition = 'none';
       
-      // 添加防抖以避免频繁布局更新
+      // Debounce to avoid frequent layout updates
       if (!window.layoutUpdateTimer) {
-        // 基于输入高度更新图标布局
+        // Update icon layout based on input height
         layoutCallback(roundedHeight);
         
-        // 防抖：50ms内不更新
+        // Debounce: do not update within 50ms
         window.layoutUpdateTimer = setTimeout(() => {
           window.layoutUpdateTimer = null;
         }, 50);
@@ -152,21 +152,21 @@ const doResize = (e, contentSection, userInput, layoutCallback) => {
 };
 
 /**
- * 停止尺寸调整
- * @param {MouseEvent} e - 鼠标事件
- * @param {HTMLElement} contentSection - 内容区域元素
- * @param {HTMLElement} userInput - 输入框元素
- * @param {Function} saveCallback - 保存尺寸的回调函数
+ * Stop resizing
+ * @param {MouseEvent} e - Mouse event
+ * @param {HTMLElement} contentSection - Content area element
+ * @param {HTMLElement} userInput - Input box element
+ * @param {Function} saveCallback - Callback to save height
  */
 const stopResize = (e, contentSection, userInput, saveCallback) => {
   if (isResizing && contentSection && typeof saveCallback === 'function') {
     isResizing = false;
     
-    // 移除视觉反馈
+    // Remove visual feedback
     document.body.style.cursor = '';
     document.body.style.userSelect = '';
     
-    // 保存新高度
+    // Save new height
     const currentHeight = contentSection.offsetHeight;
     saveCallback(currentHeight);
     
@@ -176,14 +176,14 @@ const stopResize = (e, contentSection, userInput, saveCallback) => {
   if (isInputResizing && userInput) {
     isInputResizing = false;
     
-    // 移除视觉反馈
+    // Remove visual feedback
     document.body.style.cursor = '';
     document.body.style.userSelect = '';
     
-    // 恢复输入过渡效果
+    // Restore input transition effect
     userInput.style.transition = '';
     
-    // 清除布局更新定时器
+    // Clear layout update timer
     if (window.layoutUpdateTimer) {
       clearTimeout(window.layoutUpdateTimer);
       window.layoutUpdateTimer = null;
@@ -194,9 +194,9 @@ const stopResize = (e, contentSection, userInput, saveCallback) => {
 };
 
 /**
- * 重置内容区域高度为配置默认值
- * @param {HTMLElement} contentSection - 内容区域元素
- * @param {Object} config - 配置对象
+ * Reset content section height to config default
+ * @param {HTMLElement} contentSection - Content area element
+ * @param {Object} config - Config object
  */
 const resetContentSectionHeight = (contentSection, config) => {
   if (!contentSection) {
@@ -206,12 +206,12 @@ const resetContentSectionHeight = (contentSection, config) => {
   
   try {
     if (config && typeof config.contentDisplayHeight === 'number') {
-      const height = Math.max(config.contentDisplayHeight, 80); // 确保最小高度
+      const height = Math.max(config.contentDisplayHeight, 80); // Ensure minimum height
       contentSection.style.height = `${height}px`;
       contentSection.style.maxHeight = `${height}px`;
       logger.info(`Reset content section height to config default: ${height}px`);
     } else {
-      // 回退到默认值
+      // Fallback to default value
       const defaultHeight = 100;
       contentSection.style.height = `${defaultHeight}px`;
       contentSection.style.maxHeight = `${defaultHeight}px`;
@@ -219,7 +219,7 @@ const resetContentSectionHeight = (contentSection, config) => {
     }
   } catch (error) {
     logger.error('Error resetting content section height:', error);
-    // 回退到默认值
+    // Fallback to default value
     const defaultHeight = 100;
     contentSection.style.height = `${defaultHeight}px`;
     contentSection.style.maxHeight = `${defaultHeight}px`;
@@ -227,17 +227,17 @@ const resetContentSectionHeight = (contentSection, config) => {
 };
 
 /**
- * 应用面板尺寸
- * @param {Object} config - 配置对象
+ * Apply panel size
+ * @param {Object} config - Config object
  */
 const applyPanelSize = (config) => {
   try {
-    const panelWidth = config.panelWidth || 400; // 如果未配置则使用默认宽度
+    const panelWidth = config.panelWidth || 400; // Use default width if not configured
     
-    // 侧面板通常由Chrome控制宽度，但我们可以设置最小宽度
+    // Side panel width is usually controlled by Chrome, but we can set min width
     document.documentElement.style.setProperty('--panel-width', `${panelWidth}px`);
     
-    // 高度通常由浏览器窗口控制
+    // Height is usually controlled by browser window
     document.documentElement.style.height = '100%';
     
     logger.info('Panel size applied, width:', panelWidth);
@@ -247,9 +247,9 @@ const applyPanelSize = (config) => {
 };
 
 /**
- * 保存内容区域高度到本地存储
- * @param {number} height - 要保存的高度
- * @returns {Promise<boolean>} 是否成功保存
+ * Save content section height to local storage
+ * @param {number} height - Height to save
+ * @returns {Promise<boolean>} Whether the save was successful
  */
 const saveContentSectionHeight = async (height) => {
   try {
@@ -263,14 +263,14 @@ const saveContentSectionHeight = async (height) => {
 };
 
 /**
- * 加载保存的内容区域高度
- * @param {HTMLElement} contentSection - 内容区域元素
- * @param {Object} config - 配置对象
- * @returns {Promise<number>} 加载的高度值
+ * Load saved content section height
+ * @param {HTMLElement} contentSection - Content area element
+ * @param {Object} config - Config object
+ * @returns {Promise<number>} Loaded height value
  */
 const loadContentSectionHeight = async (contentSection, config) => {
   try {
-    // 首先尝试从本地存储获取保存的高度
+    // First, try to get saved height from local storage
     const result = await chrome.storage.local.get(['contentSectionHeight']);
     
     if (result.contentSectionHeight) {
@@ -281,15 +281,15 @@ const loadContentSectionHeight = async (contentSection, config) => {
       return height;
     }
     
-    // 如果没有保存的高度，使用配置默认值
+    // If no saved height, use config default value
     if (config && typeof config.contentDisplayHeight === 'number') {
-      const height = Math.max(config.contentDisplayHeight, 80); // 确保最小高度
+      const height = Math.max(config.contentDisplayHeight, 80); // Ensure minimum height
       contentSection.style.height = `${height}px`;
       contentSection.style.maxHeight = `${height}px`;
       logger.info(`Applied config content section height: ${height}px`);
       return height;
     } else {
-      // 回退到默认值
+      // Fallback to default value
       const defaultHeight = 100;
       contentSection.style.height = `${defaultHeight}px`;
       contentSection.style.maxHeight = `${defaultHeight}px`;
@@ -298,7 +298,7 @@ const loadContentSectionHeight = async (contentSection, config) => {
     }
   } catch (error) {
     logger.error('Error loading content section height:', error);
-    // 回退到默认值
+    // Fallback to default value
     const defaultHeight = 100;
     contentSection.style.height = `${defaultHeight}px`;
     contentSection.style.maxHeight = `${defaultHeight}px`;

@@ -1,12 +1,12 @@
 /**
- * state-manager.js - 应用状态管理
+ * state-manager.js - Application state management
  */
 
 import { createLogger } from './utils.js';
 
 const logger = createLogger('StateManager');
 
-// 应用状态
+// Application state
 const state = {
   currentUrl: '',
   extractedContent: '',
@@ -16,16 +16,16 @@ const state = {
 };
 
 /**
- * 获取当前状态
- * @returns {Object} 当前状态对象
+ * Get current state
+ * @returns {Object} Current state object
  */
 const getState = () => {
   return { ...state };
 };
 
 /**
- * 更新状态
- * @param {Object} newState - 要更新的状态
+ * Update state
+ * @param {Object} newState - State to update
  */
 const updateState = (newState) => {
   Object.assign(state, newState);
@@ -33,18 +33,18 @@ const updateState = (newState) => {
 };
 
 /**
- * 获取特定状态项
- * @param {string} key - 状态键名
- * @returns {any} 状态值
+ * Get specific state item
+ * @param {string} key - State key name
+ * @returns {any} State value
  */
 const getStateItem = (key) => {
   return state[key];
 };
 
 /**
- * 更新特定状态项
- * @param {string} key - 状态键名
- * @param {any} value - 新状态值
+ * Update specific state item
+ * @param {string} key - State key name
+ * @param {any} value - New state value
  */
 const updateStateItem = (key, value) => {
   state[key] = value;
@@ -52,8 +52,8 @@ const updateStateItem = (key, value) => {
 };
 
 /**
- * 从后台获取配置
- * @returns {Promise<Object>} 配置对象
+ * Get config from background
+ * @returns {Promise<Object>} Config object
  */
 const getConfig = async () => {
   try {
@@ -75,9 +75,9 @@ const getConfig = async () => {
 };
 
 /**
- * 保存聊天历史
- * @deprecated 已由 DOM 方式管理聊天历史取代
- * @returns {Promise<boolean>} 是否成功保存
+ * Save chat history
+ * @deprecated Replaced by direct DOM manipulation
+ * @returns {Promise<boolean>} Whether saving was successful
  */
 const saveChatHistory = async () => {
   logger.warn('saveChatHistory() is deprecated, use direct DOM manipulation instead');
@@ -85,9 +85,9 @@ const saveChatHistory = async () => {
 };
 
 /**
- * 清除URL数据
- * @param {boolean} clearContent - 是否清除内容
- * @param {boolean} clearChat - 是否清除聊天历史
+ * Clear URL data
+ * @param {boolean} clearContent - Whether to clear content
+ * @param {boolean} clearChat - Whether to clear chat history
  */
 const clearUrlData = async (clearContent = false, clearChat = true) => {
   try {
@@ -103,7 +103,7 @@ const clearUrlData = async (clearContent = false, clearChat = true) => {
       clearChat
     });
     
-    // 更新本地状态
+    // Update local state
     if (clearChat) {
       state.chatHistory = [];
     }
@@ -121,8 +121,8 @@ const clearUrlData = async (clearContent = false, clearChat = true) => {
 };
 
 /**
- * 切换是否包含页面内容
- * @returns {boolean} 切换后的状态
+ * Toggle whether to include page content
+ * @returns {boolean} New state
  */
 const toggleIncludePageContent = () => {
   state.includePageContent = !state.includePageContent;
@@ -135,8 +135,8 @@ const toggleIncludePageContent = () => {
 };
 
 /**
- * 保存页面状态到缓存
- * @returns {Promise<boolean>} 是否成功保存
+ * Save page state to cache
+ * @returns {Promise<boolean>} Whether saving was successful
  */
 const savePageState = async () => {
   try {
@@ -170,9 +170,9 @@ const savePageState = async () => {
 };
 
 /**
- * 从缓存加载页面状态
- * @param {string} url - 页面URL
- * @returns {Promise<Object|null>} 页面状态对象或null
+ * Load page state from cache
+ * @param {string} url - Page URL
+ * @returns {Promise<Object|null>} Page state object or null
  */
 const loadPageState = async (url) => {
   try {
@@ -203,8 +203,8 @@ const loadPageState = async (url) => {
 };
 
 /**
- * 应用页面状态到当前状态
- * @param {Object} pageState - 页面状态对象
+ * Apply page state to current state
+ * @param {Object} pageState - Page state object
  */
 const applyPageState = (pageState) => {
   if (!pageState) {

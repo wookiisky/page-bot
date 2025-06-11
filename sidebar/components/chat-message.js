@@ -1,5 +1,5 @@
 /**
- * chat-message.js - 聊天消息组件
+ * chat-message.js - Chat message component
  * 
  * Enhanced Edit Mode Features:
  * - Auto-save on blur (clicking outside the text area)
@@ -16,42 +16,42 @@ import { getChatHistoryFromDOM, editMessageInDOM, deleteMessagesAfter } from '..
 const logger = createLogger('ChatMessage');
 
 /**
- * 获取消息元素
- * @param {string} messageId - 消息ID
- * @returns {HTMLElement|null} 消息元素
+ * Get message element
+ * @param {string} messageId - Message ID
+ * @returns {HTMLElement|null} Message element
  */
 const getMessageElement = (messageId) => {
   return document.getElementById(messageId);
 };
 
 /**
- * 编辑消息
- * @param {HTMLElement} messageElement - 消息元素
- * @param {Function} saveCallback - 保存回调函数
+ * Edit message
+ * @param {HTMLElement} messageElement - Message element
+ * @param {Function} saveCallback - Save callback function
  */
 const editMessage = (messageElement, saveCallback) => {
   logger.info(`Editing message ${messageElement.id}`);
   
-  // 找到消息内容元素
+  // Find message content element
   const contentElement = messageElement.querySelector('.message-content');
   if (!contentElement) {
     logger.error('Cannot find content element in message div');
     return;
   }
   
-  // 如果已经处于编辑模式，则忽略
+  // Ignore if already in edit mode
   if (contentElement.classList.contains('edit-mode')) {
     logger.info('Message already in edit mode');
     return;
   }
   
-  // 获取原始内容
+  // Get original content
   const originalContent = contentElement.getAttribute('data-raw-content') || contentElement.textContent;
   
-  // 添加编辑模式类
+  // Add edit mode class
   contentElement.classList.add('edit-mode');
   
-  // 清除HTML内容并创建文本区域
+  // Clear HTML content and create textarea
   contentElement.innerHTML = '';
   const textarea = document.createElement('textarea');
   textarea.value = originalContent;
@@ -104,18 +104,18 @@ const editMessage = (messageElement, saveCallback) => {
 };
 
 /**
- * 保存编辑后的消息
- * @param {string} messageId - 消息ID
- * @param {string} newContent - 新内容
- * @param {Function} saveCallback - 保存回调函数
+ * Save edited message
+ * @param {string} messageId - Message ID
+ * @param {string} newContent - New content
+ * @param {Function} saveCallback - Save callback function
  */
 const saveEditedMessage = (messageId, newContent, saveCallback) => {
   logger.info(`Saving edited message ${messageId}`);
   
-  // 更新DOM
+  // Update DOM
   editMessageInDOM(messageId, newContent);
   
-  // 移除编辑模式
+  // Remove edit mode
   const messageElement = getMessageElement(messageId);
   if (messageElement) {
     const contentElement = messageElement.querySelector('.message-content');
@@ -124,12 +124,12 @@ const saveEditedMessage = (messageId, newContent, saveCallback) => {
     }
   }
   
-  // 调用回调
+  // Call callback
   if (typeof saveCallback === 'function') {
     saveCallback(messageId, newContent);
   }
   
-  // 保存聊天历史
+  // Save chat history
   const chatContainer = document.getElementById('chatContainer');
   if (chatContainer) {
     const chatHistory = getChatHistoryFromDOM(chatContainer);
@@ -146,9 +146,9 @@ const saveEditedMessage = (messageId, newContent, saveCallback) => {
 };
 
 /**
- * 取消编辑
- * @param {string} messageId - 消息ID
- * @param {string} originalContent - 原始内容
+ * Cancel edit
+ * @param {string} messageId - Message ID
+ * @param {string} originalContent - Original content
  */
 const cancelEdit = (messageId, originalContent) => {
   logger.info(`Cancelling edit for message ${messageId}`);
@@ -159,22 +159,22 @@ const cancelEdit = (messageId, originalContent) => {
   const contentElement = messageElement.querySelector('.message-content');
   if (!contentElement) return;
   
-  // 恢复原始内容
-  // 检查是否为用户消息来决定如何渲染内容
+  // Restore original content
+  // Check if it's a user message to decide how to render content
   const isUserMessage = messageElement.classList.contains('user-message');
   
   if (isUserMessage) {
-    // 用户消息使用textContent保留换行符
+    // User messages use textContent to preserve line breaks
     contentElement.textContent = originalContent;
   } else {
-    // 助手消息检查是否包含markdown
+    // Check if assistant message contains markdown
     const containsMarkdown = hasMarkdownElements(originalContent);
     
-    // 首先移除可能存在的no-markdown类
+    // First remove any existing no-markdown class
     contentElement.classList.remove('no-markdown');
     
     if (containsMarkdown) {
-      // 包含markdown，使用markdown渲染
+      // Contains markdown, use markdown rendering
       try {
         contentElement.innerHTML = window.marked.parse(originalContent);
       } catch (error) {
@@ -182,25 +182,25 @@ const cancelEdit = (messageId, originalContent) => {
         contentElement.classList.add('no-markdown');
       }
     } else {
-      // 不包含markdown，使用纯文本并保留换行
+      // No markdown, use plain text and preserve line breaks
       contentElement.textContent = originalContent;
       contentElement.classList.add('no-markdown');
     }
   }
   
-  // 移除编辑模式
+  // Remove edit mode
   contentElement.classList.remove('edit-mode');
 };
 
 /**
- * 重试消息
- * @param {HTMLElement} messageElement - 消息元素
- * @param {Function} retryCallback - 重试回调函数
+ * Retry message
+ * @param {HTMLElement} messageElement - Message element
+ * @param {Function} retryCallback - Retry callback function
  */
 const retryMessage = (messageElement, retryCallback) => {
   logger.info(`Retrying message ${messageElement.id}`);
   
-  // 获取消息内容
+  // Get message content
   const contentElement = messageElement.querySelector('.message-content');
   if (!contentElement) {
     logger.error('Cannot find content element in message div');
@@ -209,15 +209,15 @@ const retryMessage = (messageElement, retryCallback) => {
   
   const messageContent = contentElement.getAttribute('data-raw-content') || contentElement.textContent;
   
-  // 调用回调函数
+  // Call callback function
   if (typeof retryCallback === 'function') {
     retryCallback(messageElement.id, messageContent);
   }
   
-  // 从DOM中获取对话历史
+  // Get chat history from DOM
   const chatContainer = document.getElementById('chatContainer');
   if (chatContainer) {
-    // 保存更新后的聊天历史
+    // Save updated chat history
     const chatHistory = getChatHistoryFromDOM(chatContainer);
     chrome.runtime.sendMessage({
       type: 'SAVE_CHAT_HISTORY',
@@ -229,20 +229,20 @@ const retryMessage = (messageElement, retryCallback) => {
       logger.error('Failed to save chat history after retrying message:', error);
     });
     
-    // 准备LLM请求
+    // Prepare LLM request
     const systemPrompt = window.StateManager.getConfig().systemPrompt || '';
     const extractedContent = window.StateManager.getStateItem('extractedContent') || '';
     const currentUrl = window.StateManager.getStateItem('currentUrl') || '';
     const extractionMethod = window.StateManager.getStateItem('currentExtractionMethod') || 'readability';
     const includePageContent = window.StateManager.getStateItem('includePageContent');
     
-    // 构建系统提示
+    // Build system prompt
     let systemPromptWithContent = systemPrompt;
     if (includePageContent) {
       systemPromptWithContent += '\n\nPage Content:\n' + extractedContent;
     }
     
-    // 发送LLM消息
+    // Send LLM message
     window.MessageHandler.sendLlmMessage({
       messages: chatHistory,
       systemPromptTemplate: systemPromptWithContent,
@@ -251,7 +251,7 @@ const retryMessage = (messageElement, retryCallback) => {
       extractionMethod: extractionMethod
     }).catch(error => {
       logger.error('Error retrying message:', error);
-      // 获取发送按钮并重新启用
+      // Get send button and re-enable
       const sendBtn = document.getElementById('sendBtn');
       if (sendBtn) sendBtn.disabled = false;
     });

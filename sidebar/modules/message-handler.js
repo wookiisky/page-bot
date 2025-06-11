@@ -1,5 +1,5 @@
 /**
- * message-handler.js - 消息处理和通信
+ * message-handler.js - Message handling and communication
  */
 
 import { createLogger } from './utils.js';
@@ -7,15 +7,15 @@ import { createLogger } from './utils.js';
 const logger = createLogger('MessageHandler');
 
 /**
- * 从后台获取当前页面数据
- * @param {string} url - 页面URL
- * @returns {Promise<Object>} 页面数据
+ * Get current page data from background
+ * @param {string} url - Page URL
+ * @returns {Promise<Object>} Page data
  */
 const getPageData = async (url) => {
   try {
     logger.info('Requesting page data for URL:', url);
     
-    // 添加小延迟以允许service worker初始化
+    // Add small delay to allow service worker initialization
     await new Promise(resolve => setTimeout(resolve, 100)); 
     
     const response = await chrome.runtime.sendMessage({
@@ -51,10 +51,10 @@ const getPageData = async (url) => {
 };
 
 /**
- * 切换内容提取方法
- * @param {string} url - 页面URL
- * @param {string} method - 提取方法(readability或jina)
- * @returns {Promise<Object>} 操作结果
+ * Switch content extraction method
+ * @param {string} url - Page URL
+ * @param {string} method - Extraction method (readability or jina)
+ * @returns {Promise<Object>} Operation result
  */
 const switchExtractionMethod = async (url, method) => {
   try {
@@ -94,10 +94,10 @@ const switchExtractionMethod = async (url, method) => {
 };
 
 /**
- * 重新提取内容
- * @param {string} url - 页面URL
- * @param {string} method - 提取方法
- * @returns {Promise<Object>} 操作结果
+ * Re-extract content
+ * @param {string} url - Page URL
+ * @param {string} method - Extraction method
+ * @returns {Promise<Object>} Operation result
  */
 const reExtractContent = async (url, method) => {
   try {
@@ -137,9 +137,9 @@ const reExtractContent = async (url, method) => {
 };
 
 /**
- * 发送消息到LLM
- * @param {Object} payload - 消息负载
- * @returns {Promise<Object>} 操作结果
+ * Send message to LLM
+ * @param {Object} payload - Message payload
+ * @returns {Promise<Object>} Operation result
  */
 const sendLlmMessage = async (payload) => {
   try {
@@ -149,8 +149,8 @@ const sendLlmMessage = async (payload) => {
       payload
     });
     
-    // 由于LLM响应是通过流式传输发送的，所以这里不返回具体响应
-    // 流式响应将通过消息监听器接收
+    // Since LLM response is sent via streaming, no specific response is returned here
+    // Streaming response will be received via message listener
     return { success: true };
   } catch (error) {
     logger.error('Error sending message to LLM via service worker:', error);
@@ -162,8 +162,8 @@ const sendLlmMessage = async (payload) => {
 };
 
 /**
- * 消息事件监听器设置
- * @param {Object} handlers - 消息处理函数对象
+ * Message event listener setup
+ * @param {Object} handlers - Message handler functions object
  */
 const setupMessageListeners = (handlers) => {
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {

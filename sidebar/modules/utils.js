@@ -1,15 +1,15 @@
 /**
- * utils.js - 通用工具函数
+ * utils.js - Common utility functions
  */
 
-// 创建日志记录器
+// Create logger instance
 const createLogger = (moduleName) => {
   return window.logger 
     ? window.logger.createModuleLogger(moduleName) 
     : console;
 };
 
-// 检查URL是否为受限页面
+// Check if URL is a restricted page
 const isRestrictedPage = (url) => {
   if (!url) return true;
   
@@ -27,31 +27,31 @@ const isRestrictedPage = (url) => {
   return restrictedPrefixes.some(prefix => url.startsWith(prefix));
 };
 
-// HTML特殊字符转义
+// Escape HTML special characters
 const escapeHtml = (text) => {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
 };
 
-// 显示复制成功toast提示
+// Show copy success toast notification
 const showCopyToast = (message) => {
-  // 创建toast元素
+  // Create toast element
   const toast = document.createElement('div');
   toast.className = 'copy-toast';
   toast.textContent = message;
   
-  // 添加到文档
+  // Add to document
   document.body.appendChild(toast);
   
-  // 2秒后移除
+  // Remove after 2 seconds
   setTimeout(() => {
     toast.classList.add('fadeout');
     setTimeout(() => document.body.removeChild(toast), 300);
   }, 2000);
 };
 
-// 检测内容是否包含markdown元素
+// Check if content contains markdown elements
 const hasMarkdownElements = (content) => {
   if (!content || typeof content !== 'string') return false;
   

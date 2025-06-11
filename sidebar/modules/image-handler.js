@@ -1,20 +1,20 @@
 /**
- * image-handler.js - 图片处理功能
+ * image-handler.js - Image handling functionality
  */
 
 import { createLogger } from './utils.js';
 
 const logger = createLogger('ImageHandler');
 
-// 当前图片数据
+// Current image data
 let currentImageBase64 = null;
 
 /**
- * 初始化图片处理器
- * @param {HTMLElement} userInput - 用户输入元素
- * @param {HTMLElement} imagePreviewContainer - 图片预览容器
- * @param {HTMLElement} imagePreview - 图片预览元素
- * @param {HTMLElement} removeImageBtn - 移除图片按钮
+ * Initialize image handler
+ * @param {HTMLElement} userInput - User input element
+ * @param {HTMLElement} imagePreviewContainer - Image preview container
+ * @param {HTMLElement} imagePreview - Image preview element
+ * @param {HTMLElement} removeImageBtn - Remove image button
  */
 const initImageHandler = (userInput, imagePreviewContainer, imagePreview, removeImageBtn) => {
   if (!userInput || !imagePreviewContainer || !imagePreview || !removeImageBtn) {
@@ -22,12 +22,12 @@ const initImageHandler = (userInput, imagePreviewContainer, imagePreview, remove
     return;
   }
   
-  // 处理图片粘贴
+  // Handle image paste
   userInput.addEventListener('paste', (e) => {
     handleImagePaste(e, imagePreviewContainer, imagePreview);
   });
   
-  // 移除图片
+  // Remove image
   removeImageBtn.addEventListener('click', () => {
     removeAttachedImage(imagePreviewContainer, imagePreview);
   });
@@ -36,10 +36,10 @@ const initImageHandler = (userInput, imagePreviewContainer, imagePreview, remove
 };
 
 /**
- * 处理图片粘贴
- * @param {ClipboardEvent} e - 粘贴事件
- * @param {HTMLElement} imagePreviewContainer - 图片预览容器
- * @param {HTMLElement} imagePreview - 图片预览元素
+ * Handle image paste
+ * @param {ClipboardEvent} e - Paste event
+ * @param {HTMLElement} imagePreviewContainer - Image preview container
+ * @param {HTMLElement} imagePreview - Image preview element
  */
 const handleImagePaste = (e, imagePreviewContainer, imagePreview) => {
   const items = e.clipboardData.items;
@@ -57,7 +57,7 @@ const handleImagePaste = (e, imagePreviewContainer, imagePreview) => {
       
       reader.readAsDataURL(blob);
       
-      // 防止默认的粘贴行为
+      // Prevent default paste behavior
       e.preventDefault();
       return;
     }
@@ -65,10 +65,10 @@ const handleImagePaste = (e, imagePreviewContainer, imagePreview) => {
 };
 
 /**
- * 显示附加的图片
- * @param {string} dataUrl - 图片数据URL
- * @param {HTMLElement} imagePreviewContainer - 图片预览容器
- * @param {HTMLElement} imagePreview - 图片预览元素
+ * Display attached image
+ * @param {string} dataUrl - Image data URL
+ * @param {HTMLElement} imagePreviewContainer - Image preview container
+ * @param {HTMLElement} imagePreview - Image preview element
  */
 const displayAttachedImage = (dataUrl, imagePreviewContainer, imagePreview) => {
   imagePreview.innerHTML = `<img src="${dataUrl}" alt="Attached image">`;
@@ -77,9 +77,9 @@ const displayAttachedImage = (dataUrl, imagePreviewContainer, imagePreview) => {
 };
 
 /**
- * 移除附加的图片
- * @param {HTMLElement} imagePreviewContainer - 图片预览容器
- * @param {HTMLElement} imagePreview - 图片预览元素
+ * Remove attached image
+ * @param {HTMLElement} imagePreviewContainer - Image preview container
+ * @param {HTMLElement} imagePreview - Image preview element
  */
 const removeAttachedImage = (imagePreviewContainer, imagePreview) => {
   imagePreview.innerHTML = '';
@@ -89,16 +89,16 @@ const removeAttachedImage = (imagePreviewContainer, imagePreview) => {
 };
 
 /**
- * 获取当前图片数据
- * @returns {string|null} 图片的Base64数据
+ * Get current image data
+ * @returns {string|null} Base64 data of the image
  */
 const getCurrentImage = () => {
   return currentImageBase64;
 };
 
 /**
- * 设置当前图片数据
- * @param {string|null} imageBase64 - 图片的Base64数据
+ * Set current image data
+ * @param {string|null} imageBase64 - Base64 data of the image
  */
 const setCurrentImage = (imageBase64) => {
   currentImageBase64 = imageBase64;

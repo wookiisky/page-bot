@@ -47,10 +47,10 @@ configManager.getDefaultConfig = async function() {
           }
         ]
       },
-      systemPrompt: '使用中文输出',
+      systemPrompt: 'Output in Chinese',
       quickInputs: [
-        { displayText: '总结', sendText: '简明概要的总结下面的文章:\n\n{CONTENT}' },
-        { displayText: '提取要点', sendText: 'Extract key points from this content:\n{CONTENT}' }
+        { displayText: 'Summarize', sendText: 'Provide a concise summary of the following article:\n\n{CONTENT}' },
+        { displayText: 'Extract Key Points', sendText: 'Extract key points from this content:\n{CONTENT}' }
       ],
       contentDisplayHeight: 100
     };

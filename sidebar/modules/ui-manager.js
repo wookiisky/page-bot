@@ -1,16 +1,16 @@
 /**
- * ui-manager.js - UI状态管理和DOM操作
+ * ui-manager.js - UI state management and DOM operations
  */
 
 import { createLogger, escapeHtml } from './utils.js';
 
 const logger = createLogger('UIManager');
 
-// DOM元素缓存
+// DOM elements cache
 let elements = {};
 
 /**
- * 初始化DOM元素引用
+ * Initialize DOM element references
  */
 const initElements = () => {
   elements = {
@@ -42,17 +42,17 @@ const initElements = () => {
 };
 
 /**
- * 获取DOM元素
- * @param {string} elementId - 元素ID
- * @returns {HTMLElement} DOM元素
+ * Get DOM element
+ * @param {string} elementId - Element ID
+ * @returns {HTMLElement} DOM element
  */
 const getElement = (elementId) => {
   return elements[elementId];
 };
 
 /**
- * 获取所有DOM元素
- * @returns {Object} 所有DOM元素
+ * Get all DOM elements
+ * @returns {Object} All DOM elements
  */
 const getAllElements = () => {
   return { ...elements };
@@ -81,8 +81,8 @@ const clearAllStates = () => {
 };
 
 /**
- * 显示加载状态
- * @param {string} message - 加载消息
+ * Show loading state
+ * @param {string} message - Loading message
  */
 const showLoading = (message = 'Extracting content...') => {
   // First, completely clear all states to prevent overlapping
@@ -96,13 +96,13 @@ const showLoading = (message = 'Extracting content...') => {
   elements.extractedContentElem.classList.add('hidden');
   elements.extractionError.classList.add('hidden');
   
-  // 更新加载文本
+  // Update loading text
   const loadingText = elements.loadingIndicator.querySelector('.loading-text');
   if (loadingText) {
     loadingText.textContent = message;
   }
   
-  // 显示按钮但处于禁用状态
+  // Show buttons but in disabled state
   elements.copyContentBtn.classList.add('visible');
   elements.retryExtractBtn.classList.add('visible');
   elements.copyContentBtn.classList.add('disabled');
@@ -112,7 +112,7 @@ const showLoading = (message = 'Extracting content...') => {
   elements.copyContentBtn.disabled = true;
   elements.retryExtractBtn.disabled = true;
   
-  // 在提取期间禁用提取方法切换
+  // Disable extraction method switching during extraction
   elements.jinaExtractBtn.disabled = true;
   elements.readabilityExtractBtn.disabled = true;
   
@@ -120,13 +120,13 @@ const showLoading = (message = 'Extracting content...') => {
 };
 
 /**
- * 隐藏加载状态
+ * Hide loading state
  */
 const hideLoading = () => {
   elements.loadingIndicator.classList.add('hidden');
   elements.extractedContentElem.classList.remove('hidden');
   
-  // 提取完成后重新启用提取方法切换
+  // Re-enable extraction method switching after extraction
   elements.jinaExtractBtn.disabled = false;
   elements.readabilityExtractBtn.disabled = false;
   
@@ -134,8 +134,8 @@ const hideLoading = () => {
 };
 
 /**
- * 显示提取错误
- * @param {string|Error} error - 错误信息
+ * Show extraction error
+ * @param {string|Error} error - Error message
  */
 const showExtractionError = (error) => {
   // First, completely clear all states to prevent overlapping
@@ -149,16 +149,16 @@ const showExtractionError = (error) => {
   elements.extractedContentElem.classList.add('hidden');
   elements.extractionError.classList.remove('hidden');
   
-  // 显示两个按钮，但只启用重试按钮
+  // Show both buttons, but only enable retry button
   elements.copyContentBtn.classList.add('visible');
   elements.retryExtractBtn.classList.add('visible');
   
-  // 复制按钮禁用(灰色)
+  // Copy button disabled (gray)
   elements.copyContentBtn.classList.add('disabled');
   elements.copyContentBtn.classList.remove('enabled');
   elements.copyContentBtn.disabled = true;
   
-  // 重试按钮启用(主色)
+  // Retry button enabled (primary color)
   elements.retryExtractBtn.classList.remove('disabled');
   elements.retryExtractBtn.classList.add('enabled');
   elements.retryExtractBtn.disabled = false;
@@ -169,7 +169,7 @@ const showExtractionError = (error) => {
     elements.readabilityExtractBtn.disabled = false;
   }
   
-  let errorMessage = 'Failed to extract content.'; // 默认消息
+  let errorMessage = 'Failed to extract content.'; // Default message
   if (error) {
     if (error === 'CONTENT_SCRIPT_NOT_CONNECTED') {
       errorMessage = 'Content script not connected. Please reload the page and try again.';
@@ -198,7 +198,7 @@ const showExtractionError = (error) => {
       try {
         errorMessage = JSON.stringify(error);
       } catch (e) {
-        // 如果stringify失败，使用默认消息
+        // If stringify fails, use default message
       }
     }
   }
@@ -207,14 +207,14 @@ const showExtractionError = (error) => {
 };
 
 /**
- * 显示受限页面消息
+ * Show restricted page message
  */
 const showRestrictedPageMessage = () => {
   elements.loadingIndicator.classList.add('hidden');
   elements.extractedContentElem.classList.add('hidden');
   elements.extractionError.classList.remove('hidden');
   
-  // 显示按钮但保持禁用状态
+  // Show buttons but keep them disabled
   elements.copyContentBtn.classList.add('visible');
   elements.retryExtractBtn.classList.add('visible');
   elements.copyContentBtn.classList.add('disabled');
@@ -224,10 +224,10 @@ const showRestrictedPageMessage = () => {
   elements.copyContentBtn.disabled = true;
   elements.retryExtractBtn.disabled = true;
   
-  // 清除现有内容
+  // Clear existing content
   elements.extractionError.innerHTML = '';
   
-  // 创建受限页面消息
+  // Create restricted page message
   const messageDiv = document.createElement('div');
   messageDiv.style.cssText = 'padding: 20px; text-align: center; color: #666;';
   
@@ -244,7 +244,7 @@ const showRestrictedPageMessage = () => {
   
   elements.extractionError.appendChild(messageDiv);
   
-  // 禁用提取按钮和输入
+  // Disable extraction buttons and input
   elements.jinaExtractBtn.disabled = true;
   elements.readabilityExtractBtn.disabled = true;
   elements.userInput.disabled = true;
@@ -254,8 +254,8 @@ const showRestrictedPageMessage = () => {
 };
 
 /**
- * 显示提取的内容
- * @param {string} content - 提取的内容
+ * Show extracted content
+ * @param {string} content - Extracted content
  */
 const displayExtractedContent = async (content) => {
   if (!content) {
@@ -274,10 +274,10 @@ const displayExtractedContent = async (content) => {
   elements.extractionError.classList.add('hidden');
   elements.extractedContentElem.classList.remove('hidden');
   
-  // 显示原始markdown内容而不是渲染它
+  // Show raw markdown content instead of rendering it
   elements.extractedContentElem.innerHTML = `<pre style="white-space: pre-wrap; word-break: break-word;">${escapeHtml(content)}</pre>`;
   
-  // 当内容可用时显示操作按钮并启用它们(橙色状态)
+  // Show operation buttons and enable them when content is available (orange state)
   elements.copyContentBtn.classList.add('visible');
   elements.retryExtractBtn.classList.add('visible');
   elements.copyContentBtn.classList.remove('disabled');
@@ -291,8 +291,8 @@ const displayExtractedContent = async (content) => {
 };
 
 /**
- * 更新提取方法按钮UI
- * @param {string} currentMethod - 当前提取方法
+ * Update extraction method button UI
+ * @param {string} currentMethod - Current extraction method
  */
 const updateExtractionButtonUI = (currentMethod) => {
   if (elements.jinaExtractBtn && elements.readabilityExtractBtn) {
@@ -305,8 +305,8 @@ const updateExtractionButtonUI = (currentMethod) => {
 };
 
 /**
- * 更新包含页面内容按钮状态
- * @param {boolean} includePageContent - 是否包含页面内容
+ * Update include page content button status
+ * @param {boolean} includePageContent - Whether to include page content
  */
 const updateIncludePageContentUI = (includePageContent) => {
   elements.includePageContentBtn.setAttribute('data-enabled', includePageContent ? 'true' : 'false');
@@ -314,32 +314,32 @@ const updateIncludePageContentUI = (includePageContent) => {
 };
 
 /**
- * 更新输入区域按钮布局
- * @param {number} height - 输入框高度
+ * Update input area button layout
+ * @param {number} height - Input box height
  */
 const updateIconsLayout = (height) => {
-  // 移除过渡效果以便立即更新布局
+  // Remove transition effect for immediate layout update
   elements.buttonGroup.style.transition = 'none';
   
-  // 清除所有布局类
+  // Clear all layout classes
   elements.buttonGroup.classList.remove('layout-row', 'layout-grid', 'layout-column');
   
-  // 根据高度阈值设置布局
+  // Set layout based on height threshold
   if (height <= 40) {
-    // 默认布局: 单行
+    // Default layout: Single row
     elements.buttonGroup.classList.add('layout-row');
     logger.info('Setting row layout');
   } else if (height > 40 && height <= 80) {
-    // 网格布局: 两行两列
+    // Grid layout: Two rows, two columns
     elements.buttonGroup.classList.add('layout-grid');
     logger.info('Setting grid layout');
   } else {
-    // 列布局: 单列多行
+    // Column layout: Single column multiple rows
     elements.buttonGroup.classList.add('layout-column');
     logger.info('Setting column layout');
   }
   
-  // 确保发送按钮始终保持主要类
+  // Ensure send button always stays primary class
   const sendBtn = document.getElementById('sendBtn');
   if (sendBtn) {
     if (!sendBtn.classList.contains('primary')) {
@@ -347,13 +347,13 @@ const updateIconsLayout = (height) => {
     }
   }
   
-  // 重置所有按钮样式
+  // Reset all button styles
   Array.from(elements.buttonGroup.children).forEach(button => {
-    // 清除任何内联样式
+    // Clear any inline styles
     button.removeAttribute('style');
   });
   
-  // 使用setTimeout恢复过渡效果
+  // Use setTimeout to restore transition effect
   setTimeout(() => {
     elements.buttonGroup.style.transition = '';
   }, 50);

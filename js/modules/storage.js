@@ -50,14 +50,14 @@ storage.saveChatHistory = async function(url, chatHistory) {
     // Get normalized URL as key for chat history (no method suffix)
     const key = getChatHistoryKeyFromUrl(url);
     
-    // 确保所有消息都有时间戳
+    // Ensure all messages have a timestamp
     const baseTime = Date.now() - chatHistory.length * 1000;
     const historyWithTimestamps = chatHistory.map((msg, index) => {
       if (!msg.timestamp) {
         storageLogger.info(`Adding timestamp to message ${index} with role ${msg.role}`);
         return {
           ...msg,
-          timestamp: baseTime + index * 1000 // 每条消息间隔1秒
+          timestamp: baseTime + index * 1000 // Each message is 1 second apart
         };
       }
       return msg;
@@ -130,14 +130,14 @@ storage.getChatHistory = async function(url) {
     
     const chatHistory = result[key] || [];
     
-    // 确保所有消息都有时间戳
+    // Ensure all messages have a timestamp
     const baseTime = Date.now() - chatHistory.length * 1000;
     const historyWithTimestamps = chatHistory.map((msg, index) => {
       if (!msg.timestamp) {
         storageLogger.info(`Adding timestamp to loaded message ${index} with role ${msg.role}`);
         return {
           ...msg,
-          timestamp: baseTime + index * 1000 // 每条消息间隔1秒
+          timestamp: baseTime + index * 1000 // Each message is 1 second apart
         };
       }
       return msg;

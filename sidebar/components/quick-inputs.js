@@ -1,5 +1,5 @@
 /**
- * quick-inputs.js - 快速输入按钮组件
+ * quick-inputs.js - Quick input buttons component
  */
 
 import { createLogger } from '../modules/utils.js';
@@ -7,10 +7,10 @@ import { createLogger } from '../modules/utils.js';
 const logger = createLogger('QuickInputs');
 
 /**
- * 初始化快速输入按钮
- * @param {HTMLElement} container - 按钮容器元素
- * @param {Array} quickInputs - 快速输入配置数组
- * @param {Function} onQuickInputClick - 点击回调函数
+ * Initialize quick input buttons
+ * @param {HTMLElement} container - Button container element
+ * @param {Array} quickInputs - Quick input configuration array
+ * @param {Function} onQuickInputClick - Click callback function
  */
 const initQuickInputs = (container, quickInputs, onQuickInputClick) => {
   if (!container) {
@@ -24,10 +24,10 @@ const initQuickInputs = (container, quickInputs, onQuickInputClick) => {
     return;
   }
   
-  // 清空现有内容
+  // Clear existing content
   container.innerHTML = '';
   
-  // 为每个快速输入创建按钮
+  // Create button for each quick input
   quickInputs.forEach((quickInput, index) => {
     const button = document.createElement('button');
     button.className = 'btn-base quick-input-btn';
@@ -35,7 +35,7 @@ const initQuickInputs = (container, quickInputs, onQuickInputClick) => {
     button.dataset.index = index;
     button.dataset.sendText = quickInput.sendText;
     
-    // 添加点击事件处理
+    // Add click event handler
     button.addEventListener('click', () => {
       if (typeof onQuickInputClick === 'function') {
         onQuickInputClick(quickInput.displayText, quickInput.sendText);
@@ -74,12 +74,12 @@ const loadQuickInputs = async (container, onQuickInputClick) => {
 };
 
 /**
- * 处理快速输入按钮点击
- * @param {string} displayText - 按钮显示文本
- * @param {string} sendTextTemplate - 发送的文本模板
- * @param {string} extractedContent - 提取的页面内容
- * @param {boolean} includePageContent - 是否包含页面内容
- * @param {Function} onSendMessage - 发送消息的回调函数
+ * Handle quick input button click
+ * @param {string} displayText - Button display text
+ * @param {string} sendTextTemplate - Text template to send
+ * @param {string} extractedContent - Extracted page content
+ * @param {boolean} includePageContent - Whether to include page content
+ * @param {Function} onSendMessage - Send message callback function
  */
 const handleQuickInputClick = (displayText, sendTextTemplate, extractedContent, includePageContent, onSendMessage) => {
   if (!sendTextTemplate) {
@@ -87,7 +87,7 @@ const handleQuickInputClick = (displayText, sendTextTemplate, extractedContent, 
     return;
   }
   
-  // 替换{CONTENT}占位符
+  // Replace {CONTENT} placeholder
   let userText = sendTextTemplate;
   if (sendTextTemplate.includes('{CONTENT}')) {
     if (includePageContent && extractedContent) {
@@ -98,7 +98,7 @@ const handleQuickInputClick = (displayText, sendTextTemplate, extractedContent, 
     }
   }
   
-  // 调用发送消息回调
+  // Call send message callback
   if (typeof onSendMessage === 'function') {
     onSendMessage(displayText, userText);
   } else {
