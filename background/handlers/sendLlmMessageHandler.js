@@ -1,5 +1,32 @@
 // background/handlers/sendLlmMessageHandler.js
 
+// Utility function to truncate message content showing first and last 50 characters
+function truncateContent(content, maxChars = 50) {
+    if (!content || typeof content !== 'string') {
+        return content;
+    }
+    
+    if (content.length <= maxChars * 2) {
+        return content;
+    }
+    
+    const start = content.substring(0, maxChars);
+    const end = content.substring(content.length - maxChars);
+    return `${start}...${end}`;
+}
+
+// Utility function to create truncated messages JSON for logging
+function createTruncatedMessagesForLog(messages) {
+    if (!Array.isArray(messages)) {
+        return [];
+    }
+    
+    return messages.map(msg => ({
+        role: msg.role,
+        content: truncateContent(msg.content)
+    }));
+}
+
 async function handleSendLlmMessage(data, serviceLogger, configManager, storage, llmService, safeSendMessage) {
     const { messages, systemPromptTemplate, extractedPageContent, imageBase64, currentUrl, selectedModel /*, extractionMethod */ } = data.payload;
     // extractionMethod is in data.payload but not directly used by this handler, so commented out to avoid unused variable warnings.
@@ -55,6 +82,11 @@ async function handleSendLlmMessage(data, serviceLogger, configManager, storage,
     // let error = null; // Error is handled in errorCallback
 
     try {
+        // Log the messages being sent to LLM in JSON format with truncated content
+        const truncatedMessages = createTruncatedMessagesForLog(messages);
+        serviceLogger.info('Calling LLM with messages JSON:', truncatedMessages);
+        serviceLogger.info('System prompt:', truncateContent(systemPrompt));
+        
         const streamCallback = (chunk) => {
             if (chunk !== undefined && chunk !== null) {
                 safeSendMessage({ type: 'LLM_STREAM_CHUNK', chunk });

@@ -731,8 +731,30 @@ const handleQuickInputClick = async (displayText, sendTextTemplate, chatContaine
   // Create message timestamp for DOM and message object
   const messageTimestamp = Date.now();
   
-  // Add user message to UI, using same timestamp
-  appendMessageToUI(chatContainer, 'user', displayText, null, false, messageTimestamp);
+  // Process sendTextTemplate to get actual content to send
+  let actualMessageContent = sendTextTemplate;
+  const currentState = window.StateManager.getState();
+  
+  // Replace {CONTENT} placeholder if present
+  if (sendTextTemplate.includes('{CONTENT}')) {
+    if (currentState.includePageContent && currentState.extractedContent) {
+      actualMessageContent = sendTextTemplate.replace('{CONTENT}', currentState.extractedContent);
+      logger.info('Replaced {CONTENT} placeholder in quick input message');
+    } else {
+      actualMessageContent = sendTextTemplate.replace('{CONTENT}', '');
+      logger.info('Removed {CONTENT} placeholder from quick input message (no page content)');
+    }
+  }
+  
+  // Add user message to UI - show displayText but store actualMessageContent as raw content
+  const messageElement = appendMessageToUI(chatContainer, 'user', displayText, null, false, messageTimestamp);
+  
+  // Store the actual send content in data-raw-content for editing purposes
+  const contentElement = messageElement.querySelector('.message-content');
+  if (contentElement) {
+    contentElement.setAttribute('data-raw-content', actualMessageContent);
+    logger.info('Stored actual send content in data-raw-content for editing');
+  }
   
   // Show assistant response loading indicator
   const assistantLoadingMessage = appendMessageToUI(
@@ -760,7 +782,7 @@ const handleQuickInputClick = async (displayText, sendTextTemplate, chatContaine
   }
   
   // Prepare data
-  const state = window.StateManager.getState();
+  const state = currentState;
   let systemPromptTemplateForPayload = '';
   let pageContentForPayload = state.extractedContent;
   const config = await window.StateManager.getConfig();
