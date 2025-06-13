@@ -247,17 +247,20 @@ const handleStreamChunk = (chatContainer, chunk) => {
     try {
       if (containsMarkdown) {
         // If contains markdown, try to parse it
+        streamingMessageContentDiv.classList.remove('no-markdown');
         streamingMessageContentDiv.innerHTML = window.marked.parse(currentBuffer);
+        logger.info('[handleStreamChunk] Parsed markdown content during streaming');
       } else {
         // If no markdown, display text and preserve line breaks
-        streamingMessageContentDiv.textContent = currentBuffer;
         streamingMessageContentDiv.classList.add('no-markdown');
+        streamingMessageContentDiv.textContent = currentBuffer;
+        logger.info('[handleStreamChunk] Applied no-markdown class for plain text streaming');
       }
     } catch (error) {
       logger.error('Error parsing markdown during stream:', error);
       // Fallback: display text
-      streamingMessageContentDiv.textContent = currentBuffer;
       streamingMessageContentDiv.classList.add('no-markdown');
+      streamingMessageContentDiv.textContent = currentBuffer;
     }
     
     // Scroll to bottom
@@ -297,18 +300,19 @@ const handleStreamEnd = (chatContainer, fullResponse, onComplete) => {
       
       if (containsMarkdown) {
         logger.info('[handleStreamEnd] Attempting to parse Markdown...');
+        contentDiv.classList.remove('no-markdown');
         contentDiv.innerHTML = window.marked.parse(fullResponse);
         logger.info('[handleStreamEnd] Markdown parsed and applied to contentDiv.');
       } else {
         // Use plain text with preserved line breaks for content without markdown
-        contentDiv.textContent = fullResponse;
         contentDiv.classList.add('no-markdown'); // Add class for preserving line breaks
+        contentDiv.textContent = fullResponse;
         logger.info('[handleStreamEnd] Applied fullResponse as plain text with preserved line breaks.');
       }
     } catch (markdownError) {
       logger.error('[handleStreamEnd] Error parsing Markdown:', markdownError);
-      contentDiv.textContent = fullResponse; // Fallback to plain text
       contentDiv.classList.add('no-markdown'); // Add class for preserving line breaks
+      contentDiv.textContent = fullResponse; // Fallback to plain text
       logger.info('[handleStreamEnd] Applied fullResponse as plain text due to Markdown error.');
     }
         

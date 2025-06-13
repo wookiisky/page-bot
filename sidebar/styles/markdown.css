@@ -221,6 +221,31 @@
   padding-bottom: 1px !important;
 }
 
+/* Special handling for non-markdown content - prevent excessive line spacing */
+.message-content.no-markdown {
+  white-space: pre-wrap;
+  line-height: 1.4 !important;
+  /* Override any paragraph styling that might add excessive spacing */
+}
+
+.message-content.no-markdown * {
+  line-height: inherit !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Ensure streaming content doesn't inherit markdown spacing */
+.message-content[data-streaming="true"] {
+  white-space: pre-wrap;
+  line-height: 1.4 !important;
+}
+
+.message-content[data-streaming="true"] * {
+  line-height: inherit !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
 /* High density mode for maximum content display */
 .message-content.compact {
   font-size: 12px;
