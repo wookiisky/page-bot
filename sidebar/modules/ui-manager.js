@@ -24,7 +24,7 @@ const initElements = () => {
     clearBtn: document.getElementById('clearBtn'),
     jinaExtractBtn: document.getElementById('jinaExtractBtn'),
     readabilityExtractBtn: document.getElementById('readabilityExtractBtn'),
-    quickInputsContainer: document.getElementById('quickInputs'),
+    tabContainer: document.getElementById('tabContainer'),
     imagePreviewContainer: document.getElementById('imagePreviewContainer'),
     imagePreview: document.getElementById('imagePreview'),
     removeImageBtn: document.getElementById('removeImageBtn'),

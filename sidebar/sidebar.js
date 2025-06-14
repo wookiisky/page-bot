@@ -11,7 +11,7 @@ import * as MessageHandler from './modules/message-handler.js';
 import * as ChatManager from './modules/chat-manager.js';
 import * as ResizeHandler from './modules/resize-handler.js';
 import * as ImageHandler from './modules/image-handler.js';
-import * as QuickInputs from './components/quick-inputs.js';
+import * as TabManager from './components/tab-manager.js';
 import * as ChatHistory from './modules/chat-history.js';
 import * as PageDataManager from './modules/page-data-manager.js';
 import * as EventHandler from './modules/event-handler.js';
@@ -28,6 +28,8 @@ window.StateManager = StateManager;
 window.MessageHandler = MessageHandler;
 window.ChatHistory = ChatHistory;
 window.ImageHandler = ImageHandler;
+window.ChatManager = ChatManager;
+window.TabManager = TabManager;
 
 // Initialize when DOM elements are loaded
 document.addEventListener('DOMContentLoaded', async () => {
@@ -49,17 +51,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Initialize model selector
   modelSelector = new ModelSelector();
   
-  // Load quick input buttons with handler
-  await QuickInputs.loadQuickInputs(
-    elements.quickInputsContainer,
-    (displayText, sendTextTemplate) => handleQuickInputClick(displayText, sendTextTemplate)
+  // Load tabs with handler
+  await TabManager.loadTabs(
+    elements.tabContainer,
+    elements.chatContainer,
+    (displayText, sendTextTemplate, tabId, isAutoSend, forceIncludePageContent) => handleTabAction(displayText, sendTextTemplate, tabId, isAutoSend, forceIncludePageContent)
   );
   
   // Set up event listeners
   EventHandler.setupEventListeners(
     elements,
     modelSelector,
-    (displayText, sendTextTemplate) => handleQuickInputClick(displayText, sendTextTemplate)
+    (displayText, sendTextTemplate) => handleTabAction(displayText, sendTextTemplate, TabManager.getActiveTabId(), true, null)
   );
   
   // Set up message listeners
@@ -81,21 +84,54 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 /**
- * Handle quick input click
+ * Handle tab action (switch or quick input)
  * @param {string} displayText - Display text
  * @param {string} sendTextTemplate - Send text template
+ * @param {string} tabId - Tab ID
+ * @param {boolean} isAutoSend - Whether this is an auto-send action
+ * @param {boolean} forceIncludePageContent - Force include page content for first-time quick input
  */
-const handleQuickInputClick = async (displayText, sendTextTemplate) => {
+const handleTabAction = async (displayText, sendTextTemplate, tabId, isAutoSend, forceIncludePageContent = null) => {
   const elements = UIManager.getAllElements();
   
-  await ChatManager.handleQuickInputClick(
-    displayText,
-    sendTextTemplate,
-    elements.chatContainer,
-    elements.sendBtn,
-    modelSelector,
-    () => logger.info('Quick input message saved successfully')
-  );
+  logger.info(`Tab action: ${tabId}, isAutoSend: ${isAutoSend}, displayText: ${displayText}, forceIncludePageContent: ${forceIncludePageContent}`);
+  
+  // If this is just a tab switch without auto-send, don't send message
+  if (!isAutoSend || !sendTextTemplate) {
+    logger.info('Tab switched without message sending');
+    return;
+  }
+  
+  // For first-time quick input, temporarily override include page content setting
+  let originalIncludePageContent = null;
+  if (forceIncludePageContent !== null) {
+    originalIncludePageContent = StateManager.getStateItem('includePageContent');
+    StateManager.updateStateItem('includePageContent', forceIncludePageContent);
+    logger.info(`Temporarily set includePageContent to ${forceIncludePageContent} for first-time quick input`);
+  }
+  
+  try {
+    // Handle quick input auto-send
+    await ChatManager.handleQuickInputClick(
+      displayText,
+      sendTextTemplate,
+      elements.chatContainer,
+      elements.sendBtn,
+      modelSelector,
+      async () => {
+        // Save chat history for current tab
+        const chatHistory = ChatHistory.getChatHistoryFromDOM(elements.chatContainer);
+        await TabManager.saveCurrentTabChatHistory(chatHistory);
+        logger.info('Tab chat history saved successfully');
+      }
+    );
+  } finally {
+    // Restore original include page content setting if it was overridden
+    if (originalIncludePageContent !== null) {
+      StateManager.updateStateItem('includePageContent', originalIncludePageContent);
+      logger.info(`Restored includePageContent to ${originalIncludePageContent}`);
+    }
+  }
 };
 
 /**
@@ -113,20 +149,13 @@ function setupMessageListeners() {
       ChatManager.handleStreamEnd(
         UIManager.getElement('chatContainer'),
         fullResponse,
-        (response) => {
+        async (response) => {
           // Get updated dialog history from DOM
           const chatHistory = ChatHistory.getChatHistoryFromDOM(UIManager.getElement('chatContainer'));
           
-          // Save updated chat history
-          chrome.runtime.sendMessage({
-            type: 'SAVE_CHAT_HISTORY',
-            url: StateManager.getStateItem('currentUrl'),
-            chatHistory: chatHistory
-          }).then(() => {
-            logger.info('Chat history saved after adding assistant response');
-          }).catch(error => {
-            logger.error('Failed to save chat history after adding assistant response:', error);
-          });
+          // Save updated chat history for current tab
+          await TabManager.saveCurrentTabChatHistory(chatHistory);
+          logger.info('Tab chat history saved after adding assistant response');
           
           // Re-enable send button
           UIManager.getElement('sendBtn').disabled = false;

@@ -644,14 +644,20 @@ const sendUserMessage = async (userText, imageBase64, chatContainer, userInput, 
   // Get dialog history from DOM
   const chatHistory = window.ChatHistory.getChatHistoryFromDOM(chatContainer);
   
-  // Immediately save current dialog history to storage
+  // Immediately save current dialog history to storage for current tab
   try {
-    await chrome.runtime.sendMessage({
-      type: 'SAVE_CHAT_HISTORY',
-      url: window.StateManager.getStateItem('currentUrl'),
-      chatHistory: chatHistory
-    });
-    logger.info('Chat history saved after adding user message');
+    if (window.TabManager && window.TabManager.saveCurrentTabChatHistory) {
+      await window.TabManager.saveCurrentTabChatHistory(chatHistory);
+      logger.info('Tab chat history saved after adding user message');
+    } else {
+      // Fallback to original method
+      await chrome.runtime.sendMessage({
+        type: 'SAVE_CHAT_HISTORY',
+        url: window.StateManager.getStateItem('currentUrl'),
+        chatHistory: chatHistory
+      });
+      logger.info('Chat history saved after adding user message');
+    }
     if (onMessageSaved) onMessageSaved();
   } catch (error) {
     logger.error('Failed to save chat history after adding user message:', error);
@@ -771,14 +777,20 @@ const handleQuickInputClick = async (displayText, sendTextTemplate, chatContaine
   // Get dialog history from DOM
   const chatHistory = window.ChatHistory.getChatHistoryFromDOM(chatContainer);
   
-  // Immediately save current dialog history to storage
+  // Immediately save current dialog history to storage for current tab
   try {
-    await chrome.runtime.sendMessage({
-      type: 'SAVE_CHAT_HISTORY',
-      url: window.StateManager.getStateItem('currentUrl'),
-      chatHistory: chatHistory
-    });
-    logger.info('Chat history saved after adding quick input message');
+    if (window.TabManager && window.TabManager.saveCurrentTabChatHistory) {
+      await window.TabManager.saveCurrentTabChatHistory(chatHistory);
+      logger.info('Tab chat history saved after adding quick input message');
+    } else {
+      // Fallback to original method
+      await chrome.runtime.sendMessage({
+        type: 'SAVE_CHAT_HISTORY',
+        url: window.StateManager.getStateItem('currentUrl'),
+        chatHistory: chatHistory
+      });
+      logger.info('Chat history saved after adding quick input message');
+    }
     if (onMessageSaved) onMessageSaved();
   } catch (error) {
     logger.error('Failed to save chat history after adding quick input message:', error);
@@ -836,10 +848,15 @@ const clearConversationAndContext = async (chatContainer) => {
   // Clear UI
   window.ChatHistory.clearChatHistory(chatContainer);
   
-  // Clear from storage (if we have URL)
-  await window.StateManager.clearUrlData(false, true);
+  // Clear from storage for current tab
+  if (window.TabManager && window.TabManager.clearTabChatHistory) {
+    await window.TabManager.clearTabChatHistory();
+  } else {
+    // Fallback to original method if TabManager not available
+    await window.StateManager.clearUrlData(false, true);
+  }
   
-  logger.info('Conversation cleared');
+  logger.info('Conversation cleared for current tab');
 };
 
 export {

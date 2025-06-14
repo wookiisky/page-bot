@@ -11,7 +11,7 @@ import * as ContentExtractor from './content-extractor.js';
 import * as ChatManager from './chat-manager.js';
 import * as ResizeHandler from './resize-handler.js';
 import * as ImageHandler from './image-handler.js';
-import * as QuickInputs from '../components/quick-inputs.js';
+
 
 const logger = createLogger('EventHandler');
 
@@ -19,9 +19,9 @@ const logger = createLogger('EventHandler');
  * Set up all event listeners
  * @param {Object} elements - UI elements
  * @param {Object} modelSelector - Model selector instance
- * @param {Function} onQuickInputClick - Quick input click handler
+ * @param {Function} onTabAction - Tab action handler
  */
-const setupEventListeners = (elements, modelSelector, onQuickInputClick) => {
+const setupEventListeners = (elements, modelSelector, onTabAction) => {
   // Send message button
   elements.sendBtn.addEventListener('click', () => {
     const userText = elements.userInput.value.replace(/^[ \t]+|[ \t]+$/g, '');
@@ -34,7 +34,14 @@ const setupEventListeners = (elements, modelSelector, onQuickInputClick) => {
       elements.userInput,
       elements.sendBtn,
       modelSelector,
-      () => logger.info('User message saved successfully')
+      async () => {
+        // Save chat history for current tab
+        const chatHistory = window.ChatHistory.getChatHistoryFromDOM(elements.chatContainer);
+        if (window.TabManager && window.TabManager.saveCurrentTabChatHistory) {
+          await window.TabManager.saveCurrentTabChatHistory(chatHistory);
+        }
+        logger.info('User message saved successfully');
+      }
     );
   });
   
@@ -52,7 +59,14 @@ const setupEventListeners = (elements, modelSelector, onQuickInputClick) => {
         elements.userInput,
         elements.sendBtn,
         modelSelector,
-        () => logger.info('User message saved successfully')
+        async () => {
+          // Save chat history for current tab
+          const chatHistory = window.ChatHistory.getChatHistoryFromDOM(elements.chatContainer);
+          if (window.TabManager && window.TabManager.saveCurrentTabChatHistory) {
+            await window.TabManager.saveCurrentTabChatHistory(chatHistory);
+          }
+          logger.info('User message saved successfully');
+        }
       );
     }
   });
@@ -60,10 +74,20 @@ const setupEventListeners = (elements, modelSelector, onQuickInputClick) => {
   // Export conversation
   elements.exportBtn.addEventListener('click', async () => {
     const state = StateManager.getState();
-    // Get chat history from DOM instead of state
+    // Get chat history from DOM for current tab
     const chatHistory = window.ChatHistory.getChatHistoryFromDOM(elements.chatContainer);
+    
+    // Include tab info in URL for better identification
+    let exportUrl = state.currentUrl;
+    if (window.TabManager && window.TabManager.getActiveTabId) {
+      const activeTabId = window.TabManager.getActiveTabId();
+      if (activeTabId !== 'chat') {
+        exportUrl = `${state.currentUrl}#${activeTabId}`;
+      }
+    }
+    
     await ChatManager.exportConversation(
-      state.currentUrl,
+      exportUrl,
       state.extractedContent,
       chatHistory
     );

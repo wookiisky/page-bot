@@ -101,18 +101,30 @@ const handlePageDataLoaded = async (data) => {
     logger.info(`Content displayed using method: ${data.extractionMethod}`);
   }
 
-  // Use service worker provided chat history
-  if (data && data.chatHistory) {
-    logger.info(`Received chat history with ${data.chatHistory.length} messages from service worker`);
-    ChatManager.displayChatHistory(elements.chatContainer, data.chatHistory);
+  // Load chat history for current tab
+  if (window.TabManager && window.TabManager.loadTabChatHistory && window.TabManager.getActiveTabId) {
+    const activeTabId = window.TabManager.getActiveTabId();
+    await window.TabManager.loadTabChatHistory(activeTabId);
+    logger.info(`Loaded chat history for active tab: ${activeTabId}`);
     
     // Fix existing message layouts
     setTimeout(() => {
       ChatManager.fixExistingMessageLayouts(elements.chatContainer);
     }, 100);
   } else {
-    logger.info('No chat history received from service worker');
-    elements.chatContainer.innerHTML = '';
+    // Fallback to original method if TabManager not available
+    if (data && data.chatHistory) {
+      logger.info(`Received chat history with ${data.chatHistory.length} messages from service worker`);
+      ChatManager.displayChatHistory(elements.chatContainer, data.chatHistory);
+      
+      // Fix existing message layouts
+      setTimeout(() => {
+        ChatManager.fixExistingMessageLayouts(elements.chatContainer);
+      }, 100);
+    } else {
+      logger.info('No chat history received from service worker');
+      elements.chatContainer.innerHTML = '';
+    }
   }
   
   // Enable or disable retry button based on success or failure
