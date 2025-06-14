@@ -70,7 +70,6 @@
   flex: 1;
   padding-right: 30px;
   white-space: normal;
-  transition: padding-right 0.2s ease;
 }
 
 /* Preserve line breaks for user messages */
@@ -248,7 +247,7 @@
 
 /* Smooth transitions for edit mode */
 .message-content {
-  transition: all 0.2s ease;
+  /* Transition removed to prevent text reflow when switching tabs */
 }
 
 .message-content.edit-mode {
