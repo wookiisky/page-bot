@@ -27,8 +27,8 @@ function createTruncatedMessagesForLog(messages) {
     }));
 }
 
-async function handleSendLlmMessage(data, serviceLogger, configManager, storage, llmService, safeSendMessage) {
-    const { messages, systemPromptTemplate, extractedPageContent, imageBase64, currentUrl, selectedModel /*, extractionMethod */ } = data.payload;
+async function handleSendLlmMessage(data, serviceLogger, configManager, storage, llmService, loadingStateCache, safeSendMessage) {
+    const { messages, systemPromptTemplate, extractedPageContent, imageBase64, currentUrl, selectedModel, tabId /*, extractionMethod */ } = data.payload;
     // extractionMethod is in data.payload but not directly used by this handler, so commented out to avoid unused variable warnings.
 
     const config = await configManager.getConfig();
@@ -82,6 +82,19 @@ async function handleSendLlmMessage(data, serviceLogger, configManager, storage,
     // let error = null; // Error is handled in errorCallback
 
     try {
+        // Save loading state to cache if tabId is provided
+        if (currentUrl && tabId) {
+            const loadingInfo = {
+                messageCount: messages ? messages.length : 0,
+                hasImage: !!imageBase64,
+                selectedModel: selectedModel?.name || 'default',
+                provider: llmConfig.provider
+            };
+            
+            await loadingStateCache.saveLoadingState(currentUrl, tabId, loadingInfo);
+            serviceLogger.info('Loading state saved to cache', { currentUrl, tabId });
+        }
+        
         // Log the messages being sent to LLM in JSON format with truncated content
         const truncatedMessages = createTruncatedMessagesForLog(messages);
         serviceLogger.info('Calling LLM with messages JSON:', truncatedMessages);
@@ -97,21 +110,35 @@ async function handleSendLlmMessage(data, serviceLogger, configManager, storage,
             serviceLogger.info('LLM stream finished. Full response received in handler.');
             safeSendMessage({ type: 'LLM_STREAM_END', fullResponse });
 
+            // Update loading state to completed
+            if (currentUrl && tabId) {
+                await loadingStateCache.completeLoadingState(currentUrl, tabId, fullResponse);
+                serviceLogger.info('Loading state updated to completed', { currentUrl, tabId });
+            }
+
             if (currentUrl && messages) {
+                // Use tab-specific URL for saving chat history
+                const tabSpecificUrl = tabId ? `${currentUrl}#${tabId}` : currentUrl;
                 const updatedMessages = [
                     ...messages,
                     { role: 'assistant', content: fullResponse }
                 ];
-                await storage.saveChatHistory(currentUrl, updatedMessages);
-                serviceLogger.info('Chat history updated and saved by handler for URL:', currentUrl);
+                await storage.saveChatHistory(tabSpecificUrl, updatedMessages);
+                serviceLogger.info('Chat history updated and saved by handler for tab-specific URL:', tabSpecificUrl);
             } else {
                 serviceLogger.warn('Handler could not save chat history: missing currentUrl or messages in payload.');
             }
         };
 
-        const errorCallback = (err) => {
-            // error = err; // No need to assign to a local variable if only sending message
-            safeSendMessage({ type: 'LLM_ERROR', error: err.message || 'Error calling LLM' });
+        const errorCallback = async (err) => {
+            const errorMessage = err.message || 'Error calling LLM';
+            safeSendMessage({ type: 'LLM_ERROR', error: errorMessage });
+            
+            // Update loading state to error
+            if (currentUrl && tabId) {
+                await loadingStateCache.errorLoadingState(currentUrl, tabId, errorMessage);
+                serviceLogger.info('Loading state updated to error', { currentUrl, tabId, error: errorMessage });
+            }
         };
 
         // Call the LLM service - this is an async operation but we don't await it here

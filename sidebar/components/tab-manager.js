@@ -203,7 +203,7 @@ const handleTabClick = async (tabId) => {
 };
 
 /**
- * Load chat history for a specific tab
+ * Load chat history for a specific tab and restore loading state
  * @param {string} tabId - Tab ID
  * @returns {Promise<Array>} Chat history array
  */
@@ -223,12 +223,13 @@ const loadTabChatHistory = async (tabId) => {
       url: cacheKey
     });
     
+    const chatContainer = document.getElementById('chatContainer');
+    
     if (response && response.type === 'CHAT_HISTORY_LOADED') {
       // Handle both empty and non-empty chat history
       const chatHistory = response.chatHistory || [];
       
       // Display the history in chat container
-      const chatContainer = document.getElementById('chatContainer');
       if (chatContainer && window.ChatHistory && window.ChatManager) {
         window.ChatHistory.displayChatHistory(
           chatContainer, 
@@ -240,14 +241,19 @@ const loadTabChatHistory = async (tabId) => {
         logger.warn(`Cannot display chat history for tab ${tabId}: missing required components`);
       }
       
+      // Check for cached loading state and restore if needed
+      await checkAndRestoreLoadingState(currentUrl, tabId, chatContainer);
+      
       // Return the chat history for caller to use
       return chatHistory;
     } else {
       // Clear chat container for new tab
-      const chatContainer = document.getElementById('chatContainer');
       if (chatContainer) {
         chatContainer.innerHTML = '';
       }
+      
+      // Check for cached loading state even if no chat history
+      await checkAndRestoreLoadingState(currentUrl, tabId, chatContainer);
       
       // Improved response logging
       const responseInfo = response ? {
@@ -270,6 +276,70 @@ const loadTabChatHistory = async (tabId) => {
     
     logger.error('Exception while loading tab chat history:', errorInfo);
     return [];
+  }
+};
+
+/**
+ * Check and restore loading state for a tab
+ * @param {string} currentUrl - Current page URL
+ * @param {string} tabId - Tab ID
+ * @param {HTMLElement} chatContainer - Chat container element
+ */
+const checkAndRestoreLoadingState = async (currentUrl, tabId, chatContainer) => {
+  try {
+    // Request loading state from background script
+    const loadingStateResponse = await chrome.runtime.sendMessage({
+      type: 'GET_LOADING_STATE',
+      url: currentUrl,
+      tabId: tabId
+    });
+    
+         if (loadingStateResponse && loadingStateResponse.loadingState) {
+       const loadingState = loadingStateResponse.loadingState;
+       logger.info(`Found cached loading state for tab ${tabId}:`, loadingState.status);
+       
+       if (loadingState.status === 'loading') {
+         // Show loading indicator
+         if (chatContainer && window.ChatManager) {
+           window.ChatManager.appendMessageToUI(
+             chatContainer,
+             'assistant',
+             '<div class="spinner"></div>',
+             null,
+             true
+           );
+           logger.info(`Restored loading UI for tab ${tabId}`);
+         }
+       } else if (loadingState.status === 'timeout') {
+         // Show timeout message
+         if (chatContainer && window.ChatManager) {
+           window.ChatManager.appendMessageToUI(
+             chatContainer,
+             'assistant',
+             '<span style="color: var(--error-color);">Request timed out after 10 minutes. Please try again.</span>'
+           );
+           logger.info(`Restored timeout message for tab ${tabId}`);
+         }
+       } else if (loadingState.status === 'error' && loadingState.error) {
+         // Show error message
+         if (chatContainer && window.ChatManager) {
+           window.ChatManager.appendMessageToUI(
+             chatContainer,
+             'assistant',
+             `<span style="color: var(--error-color);">${loadingState.error}</span>`
+           );
+           logger.info(`Restored error message for tab ${tabId}`);
+         }
+       } else if (loadingState.status === 'completed') {
+         // For completed status, the result should already be in chat history
+         // No additional UI elements needed, just log for debugging
+         logger.info(`Loading state is completed for tab ${tabId}, AI response should be in chat history`);
+       }
+       // Note: 'completed' status doesn't need special handling as the result 
+       // should already be in chat history
+     }
+  } catch (error) {
+    logger.error('Error checking loading state:', { currentUrl, tabId, error: error.message });
   }
 };
 

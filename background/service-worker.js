@@ -5,6 +5,7 @@
 importScripts('../js/modules/logger.js');
 importScripts('../js/modules/config_manager.js');
 importScripts('../js/modules/storage.js');
+importScripts('../js/modules/loading_state_cache.js');
 importScripts('../js/modules/content_extractor.js');
 // Ensure providers are loaded before llm_service.js
 // importScripts('../js/modules/page_content_extractor.js'); // Removed as it does not exist
@@ -25,6 +26,8 @@ importScripts('handlers/clearUrlDataHandler.js');
 importScripts('handlers/configHandler.js');
 importScripts('handlers/saveChatHistoryHandler.js');
 importScripts('handlers/getChatHistoryHandler.js');
+importScripts('handlers/getLoadingStateHandler.js');
+importScripts('handlers/clearLoadingStateHandler.js');
 importScripts('handlers/pageStateHandler.js');
 
 // Import event listener handlers
@@ -127,7 +130,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             (tabId, msg, callback) => safeSendTabMessage(tabId, msg, serviceLogger, callback));
         }
         case 'SEND_LLM_MESSAGE': {
-          return await handleSendLlmMessage(data, serviceLogger, configManager, storage, llmService, 
+          return await handleSendLlmMessage(data, serviceLogger, configManager, storage, llmService, loadingStateCache,
             (msg) => safeSendMessage(msg, serviceLogger));
         }
         case 'CLEAR_URL_DATA': {
@@ -143,6 +146,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           return await handleSaveChatHistory(data, serviceLogger, storage);
         case 'GET_CHAT_HISTORY':
           return await handleGetChatHistory(data, serviceLogger, storage);
+        case 'GET_LOADING_STATE':
+          return await handleGetLoadingState(data, serviceLogger, loadingStateCache);
+        case 'CLEAR_LOADING_STATE':
+          return await handleClearLoadingState(data, serviceLogger, loadingStateCache);
         case 'SAVE_PAGE_STATE':
           return await handleSavePageState(data, serviceLogger, storage);
         case 'GET_PAGE_STATE':

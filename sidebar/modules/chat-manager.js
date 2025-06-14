@@ -356,7 +356,7 @@ const handleStreamEnd = (chatContainer, fullResponse, onComplete) => {
       onComplete(fullResponse);
     }
   } else {
-    logger.warn('[handleStreamEnd] streamingMessageContainer not found! UI might be stuck or already updated.');
+    logger.debug('[handleStreamEnd] streamingMessageContainer not found, stream may have already completed.');
     // Even if no streaming message container is found, call completion callback
     if (typeof onComplete === 'function') {
       onComplete(fullResponse);
@@ -696,6 +696,9 @@ const sendUserMessage = async (userText, imageBase64, chatContainer, userInput, 
     // Get selected model
     const selectedModel = modelSelector ? modelSelector.getSelectedModel() : null;
     
+    // Get current tab ID for loading state tracking
+    const currentTabId = window.TabManager ? window.TabManager.getActiveTabId() : 'chat';
+    
     // Send message to background script for LLM processing
     await window.MessageHandler.sendLlmMessage({
       messages: chatHistory,
@@ -704,7 +707,8 @@ const sendUserMessage = async (userText, imageBase64, chatContainer, userInput, 
       imageBase64: imageBase64,
       currentUrl: window.StateManager.getStateItem('currentUrl'),
       extractionMethod: window.StateManager.getStateItem('currentExtractionMethod'),
-      selectedModel: selectedModel
+      selectedModel: selectedModel,
+      tabId: currentTabId
     });
   } catch (error) {
     logger.error('Error sending message to LLM via service worker:', error);
@@ -816,6 +820,9 @@ const handleQuickInputClick = async (displayText, sendTextTemplate, chatContaine
     // Get selected model
     const selectedModel = modelSelector ? modelSelector.getSelectedModel() : null;
     
+    // Get current tab ID for loading state tracking
+    const currentTabId = window.TabManager ? window.TabManager.getActiveTabId() : 'chat';
+    
     // Send message to background script for LLM processing
     await window.MessageHandler.sendLlmMessage({
       messages: chatHistory,
@@ -823,7 +830,8 @@ const handleQuickInputClick = async (displayText, sendTextTemplate, chatContaine
       extractedPageContent: pageContentForPayload,
       currentUrl: state.currentUrl,
       extractionMethod: state.currentExtractionMethod,
-      selectedModel: selectedModel
+      selectedModel: selectedModel,
+      tabId: currentTabId
     });
   } catch (error) {
     logger.error('Error sending quick message:', error);
@@ -854,6 +862,23 @@ const clearConversationAndContext = async (chatContainer) => {
   } else {
     // Fallback to original method if TabManager not available
     await window.StateManager.clearUrlData(false, true);
+  }
+  
+  // Clear loading state cache for current tab
+  try {
+    const currentUrl = window.StateManager.getStateItem('currentUrl');
+    const currentTabId = window.TabManager ? window.TabManager.getActiveTabId() : 'chat';
+    
+    if (currentUrl && currentTabId) {
+      await chrome.runtime.sendMessage({
+        type: 'CLEAR_LOADING_STATE',
+        url: currentUrl,
+        tabId: currentTabId
+      });
+      logger.info('Loading state cleared for current tab');
+    }
+  } catch (error) {
+    logger.error('Error clearing loading state:', error);
   }
   
   logger.info('Conversation cleared for current tab');
