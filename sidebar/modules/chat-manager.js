@@ -753,6 +753,9 @@ const handleQuickInputClick = async (displayText, sendTextTemplate, chatContaine
   const contentElement = messageElement.querySelector('.message-content');
   if (contentElement) {
     contentElement.setAttribute('data-raw-content', actualMessageContent);
+    // Mark this as a quick input message and store display text
+    contentElement.setAttribute('data-quick-input', 'true');
+    contentElement.setAttribute('data-display-text', displayText);
     logger.info('Stored actual send content in data-raw-content for editing');
   }
   

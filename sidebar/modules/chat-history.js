@@ -30,12 +30,24 @@ const getChatHistoryFromDOM = (chatContainer) => {
     // Get image data if it exists
     const imageBase64 = messageEl.getAttribute('data-image');
     
-    chatHistory.push({
+    // Create base message object
+    const messageObj = {
       role,
       content,
       timestamp,
       ...(imageBase64 ? { imageBase64 } : {})
-    });
+    };
+    
+    // Check if this is a quick input message and store display text
+    if (contentEl && contentEl.getAttribute('data-quick-input') === 'true') {
+      const displayText = contentEl.getAttribute('data-display-text');
+      if (displayText) {
+        messageObj.displayText = displayText;
+        messageObj.isQuickInput = true;
+      }
+    }
+    
+    chatHistory.push(messageObj);
   });
 
   return chatHistory;
@@ -177,14 +189,30 @@ const displayChatHistory = (chatContainer, history, appendMessageToUIFunc) => {
         return;
       }
       
-      appendMessageToUIFunc(
+      // For quick input messages, show display text but preserve send text for editing
+      let contentToShow = message.content;
+      if (message.isQuickInput && message.displayText) {
+        contentToShow = message.displayText;
+      }
+      
+      const messageElement = appendMessageToUIFunc(
         chatContainer,
         message.role,
-        message.content,
+        contentToShow,
         message.imageBase64 || null,
         false,
         message.timestamp
       );
+      
+      // If this is a quick input message, restore the data attributes
+      if (message.isQuickInput && messageElement) {
+        const contentEl = messageElement.querySelector('.message-content');
+        if (contentEl) {
+          contentEl.setAttribute('data-quick-input', 'true');
+          contentEl.setAttribute('data-display-text', message.displayText || message.content);
+          contentEl.setAttribute('data-raw-content', message.content);
+        }
+      }
     });
     
     // Scroll to bottom
