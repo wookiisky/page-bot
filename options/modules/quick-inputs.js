@@ -3,8 +3,21 @@
 
 export class QuickInputsManager {
   
+  /**
+   * Generate a random unique ID for quick input tabs
+   * @returns {string} Random ID string
+   */
+  static generateRandomId() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let result = 'qi_'; // prefix with 'qi_' (quick input)
+    for (let i = 0; i < 8; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  }
+  
   // Add a new quick input
-  static addQuickInput(domElements, displayText = '', sendText = '') {
+  static addQuickInput(domElements, displayText = '', sendText = '', id = null) {
     // Clone the template
     const template = domElements.quickInputTemplate.content.cloneNode(true);
     
@@ -16,6 +29,13 @@ export class QuickInputsManager {
     if (sendText) {
       template.querySelector('.quick-input-send').value = sendText;
     }
+    
+    // Store ID in a hidden input for persistence
+    const hiddenIdInput = document.createElement('input');
+    hiddenIdInput.type = 'hidden';
+    hiddenIdInput.className = 'quick-input-id';
+    hiddenIdInput.value = id || this.generateRandomId();
+    template.querySelector('.quick-input-item').appendChild(hiddenIdInput);
     
     // Add to container
     domElements.quickInputsContainer.appendChild(template);
@@ -34,9 +54,11 @@ export class QuickInputsManager {
     items.forEach(item => {
       const displayText = item.querySelector('.quick-input-display').value.trim();
       const sendText = item.querySelector('.quick-input-send').value.trim();
+      const idInput = item.querySelector('.quick-input-id');
       
       if (displayText && sendText) {
         quickInputs.push({
+          id: idInput ? idInput.value : this.generateRandomId(),
           displayText,
           sendText
         });
@@ -53,7 +75,7 @@ export class QuickInputsManager {
     
     // Add each quick input
     quickInputs.forEach(input => {
-      this.addQuickInput(domElements, input.displayText, input.sendText);
+      this.addQuickInput(domElements, input.displayText, input.sendText, input.id);
     });
     
     // Add an empty one if none exist
@@ -67,6 +89,9 @@ export class QuickInputsManager {
     // Add quick input button
     domElements.addQuickInputBtn.addEventListener('click', () => {
       this.addQuickInput(domElements);
+      if (autoSaveCallback) {
+        autoSaveCallback();
+      }
     });
     
     // Quick input remove button delegation

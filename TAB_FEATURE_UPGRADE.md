@@ -96,7 +96,8 @@ Quick Input配置需要包含`id`字段用于tab识别：
 
 ### 兼容性
 - 向后兼容现有的Quick Input配置
-- 如果Quick Input没有`id`字段，会自动生成`quick-{index}`格式的ID
+- 新建Quick Input时会自动生成随机格式的ID（如`qi_r80Ur5bR`）
+- 如果Quick Input没有`id`字段，会自动生成随机ID而不是简单序号
 - 保持现有的`{CONTENT}`占位符功能
 
 ## 优势
@@ -117,6 +118,11 @@ Quick Input配置需要包含`id`字段用于tab识别：
    - 支持未来更多高级功能
 
 ## 更新日志
+
+### v1.2 - 随机ID生成优化
+- **改进**: Quick Input tab现在使用随机生成的ID（格式：`qi_XXXXXXXX`）而不是简单序号
+- **增强**: 提高了tab ID的唯一性和安全性
+- **兼容**: 保持向后兼容，现有配置会自动迁移到新的ID格式
 
 ### v1.1 - Include Page Content 行为优化
 - **新增**: Quick Input tab首次点击时根据"Include Page Content"按钮状态处理
