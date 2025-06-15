@@ -189,8 +189,13 @@ input, select, textarea {
   font-size: 0.85rem;
   font-family: inherit;
   background-color: #ffffff;
-  transition: all 0.3s ease;
+  transition: border-color 0.3s ease, background-color 0.3s ease, box-shadow 0.3s ease;
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+textarea {
+  resize: both;
+  min-height: 60px;
 }
 
 input:focus, select:focus, textarea:focus {
