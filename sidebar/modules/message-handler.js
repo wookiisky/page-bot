@@ -188,6 +188,12 @@ const setupMessageListeners = (handlers) => {
         }
         break;
         
+      case 'LOADING_STATE_UPDATE':
+        if (handlers.onLoadingStateUpdate) {
+          handlers.onLoadingStateUpdate(message);
+        }
+        break;
+        
       case 'TAB_CHANGED':
         if (handlers.onTabChanged) {
           handlers.onTabChanged(message.url);

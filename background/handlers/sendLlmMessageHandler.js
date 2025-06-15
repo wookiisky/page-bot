@@ -108,12 +108,17 @@ async function handleSendLlmMessage(data, serviceLogger, configManager, storage,
 
         const doneCallback = async (fullResponse) => {
             serviceLogger.info('LLM stream finished. Full response received in handler.');
+            
+            // Send stream end message to any connected sidebar
             safeSendMessage({ type: 'LLM_STREAM_END', fullResponse });
 
             // Update loading state to completed
             if (currentUrl && tabId) {
                 await loadingStateCache.completeLoadingState(currentUrl, tabId, fullResponse);
                 serviceLogger.info('Loading state updated to completed', { currentUrl, tabId });
+                
+                // Also broadcast completion to all sidebar instances for this URL
+                broadcastLoadingStateUpdate(currentUrl, tabId, 'completed', fullResponse);
             }
 
             if (currentUrl && messages) {
@@ -132,12 +137,17 @@ async function handleSendLlmMessage(data, serviceLogger, configManager, storage,
 
         const errorCallback = async (err) => {
             const errorMessage = err.message || 'Error calling LLM';
+            
+            // Send error message to any connected sidebar
             safeSendMessage({ type: 'LLM_ERROR', error: errorMessage });
             
             // Update loading state to error
             if (currentUrl && tabId) {
                 await loadingStateCache.errorLoadingState(currentUrl, tabId, errorMessage);
                 serviceLogger.info('Loading state updated to error', { currentUrl, tabId, error: errorMessage });
+                
+                // Also broadcast error to all sidebar instances for this URL
+                broadcastLoadingStateUpdate(currentUrl, tabId, 'error', null, errorMessage);
             }
         };
 
@@ -161,5 +171,40 @@ async function handleSendLlmMessage(data, serviceLogger, configManager, storage,
         serviceLogger.error('Critical error initiating LLM call in handler:', err);
         // This catch block handles errors in the setup of the callLLM, not from the LLM call itself (handled by errorCallback)
         return { type: 'LLM_SETUP_ERROR', error: err.message || 'Error setting up LLM call' };
+    }
+}
+
+/**
+ * Broadcast loading state updates to all connected sidebars
+ * @param {string} url - Page URL
+ * @param {string} tabId - Tab ID
+ * @param {string} status - Loading status
+ * @param {string} result - Optional result for completed status
+ * @param {string} error - Optional error for error status
+ */
+function broadcastLoadingStateUpdate(url, tabId, status, result = null, error = null) {
+    try {
+        // Get all tabs for this URL
+        chrome.tabs.query({ url: url }, (tabs) => {
+            if (tabs && tabs.length > 0) {
+                tabs.forEach((tab) => {
+                    // Send message to content script or sidebar for this tab
+                    chrome.tabs.sendMessage(tab.id, {
+                        type: 'LOADING_STATE_UPDATE',
+                        url: url,
+                        tabId: tabId,
+                        status: status,
+                        result: result,
+                        error: error,
+                        timestamp: Date.now()
+                    }).catch((err) => {
+                        // Tab might not have a content script or sidebar open
+                        serviceLogger.debug(`Could not send loading state update to tab ${tab.id}:`, err.message);
+                    });
+                });
+            }
+        });
+    } catch (error) {
+        serviceLogger.error('Error broadcasting loading state update:', error);
     }
 } 

@@ -10,6 +10,7 @@ This implementation adds persistent loading state caching to the Page Bot extens
 2. **Background Processing**: LLM requests continue processing in the background
 3. **Timeout Handling**: Loading states auto-cancel after 10 minutes
 4. **UI State Restoration**: Switching tabs restores the appropriate loading/result state
+5. **Tab Loading State Prevention**: Prevents duplicate LLM calls when already loading
 
 ## Implementation Details
 
@@ -40,6 +41,7 @@ This implementation adds persistent loading state caching to the Page Bot extens
 
 - **Tab ID Passing**: Passes current tab ID with LLM requests
 - **Clear Functionality**: Clears loading states when conversation is cleared
+- **Loading State Updates**: Updates tab loading states during chat operations
 
 ### 5. Tab Manager Updates (`sidebar/components/tab-manager.js`)
 
@@ -49,6 +51,7 @@ This implementation adds persistent loading state caching to the Page Bot extens
   - Timeout: Shows timeout message
   - Error: Shows error message
   - Completed: Shows normal chat history
+- **Tab Loading State Prevention**: Prevents duplicate LLM calls when already loading
 
 ## Usage Flow
 
@@ -82,6 +85,9 @@ This implementation adds persistent loading state caching to the Page Bot extens
 2. **No Lost Work**: LLM processing continues in background
 3. **Timeout Safety**: Prevents stuck loading states
 4. **Error Recovery**: Clear error messages for failed requests
+5. **Prevents Duplicate Calls**: No more accidental duplicate LLM requests
+6. **Resource Efficiency**: Reduces unnecessary API calls and processing
+7. **Improved Reliability**: Handles edge cases and errors gracefully
 
 ## Dependencies
 
@@ -98,4 +104,9 @@ To test the implementation:
 2. Switch to another tab while LLM is processing
 3. Switch back to original tab
 4. Verify that loading state is restored correctly
-5. Wait for LLM response and verify completion state 
+5. Wait for LLM response and verify completion state
+6. Open the extension sidebar
+7. Create a quick input tab or use the default chat
+8. Send a message and immediately click the same tab
+9. Observe that the duplicate click is prevented and tab shows loading indicator
+10. Wait for the response to complete and verify loading state is cleared 

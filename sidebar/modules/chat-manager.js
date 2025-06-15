@@ -9,6 +9,22 @@ import { displayChatHistory as displayChatHistoryFromModule } from './chat-histo
 const logger = createLogger('ChatManager');
 
 /**
+ * Update tab loading state when message UI changes
+ * @param {string} tabId - Tab ID
+ * @param {boolean} isLoading - Loading state
+ */
+const updateTabLoadingState = async (tabId, isLoading) => {
+  try {
+    if (window.TabManager && window.TabManager.updateTabLoadingState) {
+      await window.TabManager.updateTabLoadingState(tabId, isLoading);
+      logger.info(`Updated tab ${tabId} loading state to: ${isLoading}`);
+    }
+  } catch (error) {
+    logger.warn('Error updating tab loading state:', error);
+  }
+};
+
+/**
  * Append message to chat UI
  * @param {HTMLElement} chatContainer - Chat container element
  * @param {string} role - Message role ('user' or 'assistant')
@@ -56,6 +72,14 @@ const appendMessageToUI = (chatContainer, role, content, imageBase64 = null, isS
     }
     messageDiv.dataset.streaming = 'true';
     logger.info(`[appendMessageToUI ${messageTimestamp}] Set data-streaming=true on messageDiv (ID: ${messageDiv.id}). Element:`, messageDiv);
+    
+    // Update tab loading state when loading spinner is added
+    if (content.includes('<div class="spinner"></div>')) {
+      const currentTabId = window.TabManager ? window.TabManager.getActiveTabId() : 'chat';
+      updateTabLoadingState(currentTabId, true).catch(error => 
+        logger.warn('Error updating tab loading state:', error)
+      );
+    }
   } else {
     logger.info(`[appendMessageToUI ${messageTimestamp}] Not a streaming assistant placeholder. Role: ${role}, Streaming: ${isStreaming}`);
     
@@ -320,6 +344,12 @@ const handleStreamEnd = (chatContainer, fullResponse, onComplete) => {
     streamingMessageContainer.removeAttribute('data-streaming');
     logger.info('[handleStreamEnd] Removed data-streaming attribute.');
     
+    // Update tab loading state when streaming ends
+    const currentTabId = window.TabManager ? window.TabManager.getActiveTabId() : 'chat';
+    updateTabLoadingState(currentTabId, false).catch(error => 
+      logger.warn('Error updating tab loading state:', error)
+    );
+    
     // Add operation buttons for assistant messages
     const buttonContainer = document.createElement('div');
     buttonContainer.className = 'message-buttons';
@@ -373,6 +403,12 @@ const handleStreamEnd = (chatContainer, fullResponse, onComplete) => {
  */
 const handleLlmError = (chatContainer, error, streamingMessageElement = null, onComplete = null) => {
   logger.error('LLM Error:', error);
+  
+  // Update tab loading state when error occurs
+  const currentTabId = window.TabManager ? window.TabManager.getActiveTabId() : 'chat';
+  updateTabLoadingState(currentTabId, false).catch(error => 
+    logger.warn('Error updating tab loading state:', error)
+  );
   
   // Try to find streaming message (if not passed)
   const messageElement = streamingMessageElement || chatContainer.querySelector('[data-streaming="true"]');

@@ -12,15 +12,16 @@ import * as ChatManager from './chat-manager.js';
 const logger = createLogger('PageDataManager');
 
 /**
- * Load current page data
- * @returns {Promise<void>}
+ * Load current page data and restore loading state if needed
  */
 const loadCurrentPageData = async () => {
   // Get current tab URL
   const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
   if (tabs.length > 0) {
-    const url = tabs[0].url;
+    const tab = tabs[0];
+    const url = tab.url;
     StateManager.updateStateItem('currentUrl', url);
+    StateManager.updateStateItem('currentTabId', tab.id.toString());
     logger.info('Current URL:', url);
     
     // Check if it's a restricted page
@@ -61,9 +62,156 @@ const loadCurrentPageData = async () => {
       logger.error('Error requesting page data:', error);
       UIManager.showExtractionError('Failed to communicate with the background script. Details: ' + (error.message || 'Unknown error'));
     }
+    
+    // After loading page data, check and restore loading state for current active tab
+    await checkAndRestoreCurrentTabLoadingState();
+    
   } else {
     UIManager.showExtractionError('No active tab found');
   }
+};
+
+/**
+ * Check and restore loading state for current active tab
+ */
+const checkAndRestoreCurrentTabLoadingState = async () => {
+  try {
+    const currentUrl = window.StateManager.getStateItem('currentUrl');
+    const currentTabId = window.StateManager.getStateItem('currentTabId');
+    
+    if (!currentUrl || !currentTabId) {
+      logger.warn('Missing current URL or tab ID, cannot check loading state');
+      return;
+    }
+    
+    // Get active tab ID from TabManager
+    const activeTabId = window.TabManager ? window.TabManager.getActiveTabId() : 'chat';
+    
+    logger.info(`Checking loading state for URL: ${currentUrl}, TabId: ${currentTabId}, ActiveTab: ${activeTabId}`);
+    
+    // Use TabManager's loading state restoration if available
+    if (window.TabManager && window.TabManager.checkAndRestoreLoadingState) {
+      const chatContainer = document.getElementById('chatContainer');
+      if (chatContainer) {
+        await window.TabManager.checkAndRestoreLoadingState(currentUrl, activeTabId, chatContainer);
+        logger.info('Loading state restoration completed via TabManager');
+      }
+    } else {
+      // Fallback: direct loading state check
+      await directLoadingStateCheck(currentUrl, activeTabId);
+    }
+    
+  } catch (error) {
+    logger.error('Error checking and restoring loading state:', error);
+  }
+};
+
+/**
+ * Direct loading state check (fallback method)
+ */
+const directLoadingStateCheck = async (currentUrl, tabId) => {
+  try {
+    // Request loading state from background script
+    const loadingStateResponse = await chrome.runtime.sendMessage({
+      type: 'GET_LOADING_STATE',
+      url: currentUrl,
+      tabId: tabId
+    });
+    
+    if (loadingStateResponse && loadingStateResponse.loadingState) {
+      const loadingState = loadingStateResponse.loadingState;
+      logger.info(`Found cached loading state for current tab:`, loadingState.status);
+      
+      const chatContainer = document.getElementById('chatContainer');
+      if (!chatContainer || !window.ChatManager) {
+        logger.warn('ChatContainer or ChatManager not available for loading state restoration');
+        return;
+      }
+      
+      if (loadingState.status === 'loading') {
+        // Show loading indicator
+        window.ChatManager.appendMessageToUI(
+          chatContainer,
+          'assistant',
+          '<div class="spinner"></div>',
+          null,
+          true
+        );
+        logger.info('Restored loading UI for current tab');
+        
+        // Set up reconnection listener for ongoing LLM stream
+        setupStreamReconnection(currentUrl, tabId);
+        
+      } else if (loadingState.status === 'timeout') {
+        // Show timeout message
+        window.ChatManager.appendMessageToUI(
+          chatContainer,
+          'assistant',
+          '<span style="color: var(--error-color);">Request timed out after 10 minutes. Please try again.</span>'
+        );
+        logger.info('Restored timeout message for current tab');
+        
+      } else if (loadingState.status === 'error' && loadingState.error) {
+        // Show error message
+        window.ChatManager.appendMessageToUI(
+          chatContainer,
+          'assistant',
+          `<span style="color: var(--error-color);">${loadingState.error}</span>`
+        );
+        logger.info('Restored error message for current tab');
+        
+      } else if (loadingState.status === 'completed') {
+        // For completed status, the result should already be in chat history
+        logger.info('Loading state is completed, AI response should be in chat history');
+      }
+    }
+  } catch (error) {
+    logger.error('Error in direct loading state check:', error);
+  }
+};
+
+/**
+ * Set up stream reconnection for ongoing LLM requests
+ */
+const setupStreamReconnection = (currentUrl, tabId) => {
+  logger.info(`Setting up stream reconnection for ${currentUrl}#${tabId}`);
+  
+  // The stream should continue automatically via the existing message listeners
+  // No additional setup needed as the background service worker continues processing
+  // and will send stream chunks/completion messages when available
+  
+  // Optional: Set up a periodic check to verify the loading state hasn't timed out
+  const checkInterval = setInterval(async () => {
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: 'GET_LOADING_STATE',
+        url: currentUrl,
+        tabId: tabId
+      });
+      
+      if (response && response.loadingState) {
+        const status = response.loadingState.status;
+        if (status !== 'loading') {
+          // Loading is no longer active, stop checking
+          clearInterval(checkInterval);
+          logger.info(`Stream reconnection check stopped, status: ${status}`);
+        }
+      } else {
+        // No loading state found, stop checking
+        clearInterval(checkInterval);
+        logger.info('Stream reconnection check stopped, no loading state found');
+      }
+    } catch (error) {
+      logger.error('Error during stream reconnection check:', error);
+      clearInterval(checkInterval);
+    }
+  }, 5000); // Check every 5 seconds
+  
+  // Auto-cleanup after 15 minutes
+  setTimeout(() => {
+    clearInterval(checkInterval);
+    logger.info('Stream reconnection check auto-cleanup after 15 minutes');
+  }, 15 * 60 * 1000);
 };
 
 /**
@@ -236,6 +384,9 @@ const handleTabUpdated = async (url) => {
 
 export {
   loadCurrentPageData,
+  checkAndRestoreCurrentTabLoadingState,
+  directLoadingStateCheck,
+  setupStreamReconnection,
   handlePageDataLoaded,
   handleTabChanged,
   handleAutoLoadContent,

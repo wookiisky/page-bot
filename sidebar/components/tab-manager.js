@@ -14,6 +14,8 @@ logger.info('TabManager v1.2 loaded - Enhanced error handling');
 let tabs = [];
 let activeTabId = 'chat'; // Default chat tab
 let onTabClickHandler = null;
+let isRendering = false; // Flag to prevent concurrent rendering
+let isHandlingTabClick = false; // Flag to prevent concurrent tab click handling
 
 /**
  * Check if all required dependencies are available
@@ -119,24 +121,109 @@ const loadTabs = async (container, chatContainer, onTabClick) => {
 /**
  * Render tabs in the container
  * @param {HTMLElement} container - Tab container element
+ * @param {boolean} skipLoadingStateUpdate - Skip loading state update to prevent recursion
  */
-const renderTabs = (container) => {
+const renderTabs = async (container, skipLoadingStateUpdate = false) => {
   if (!container) return;
   
-  container.innerHTML = '';
-  container.className = 'tab-container';
+  // Prevent concurrent rendering
+  if (isRendering) {
+    logger.debug('Tab rendering already in progress, skipping');
+    return;
+  }
   
-  tabs.forEach(tab => {
-    const tabElement = document.createElement('div');
-    tabElement.className = `tab ${tab.isActive ? 'active' : ''}`;
-    tabElement.dataset.tabId = tab.id;
-    tabElement.textContent = tab.displayText;
+  isRendering = true;
+  
+  try {
+    // Clear container first
+    container.innerHTML = '';
+    container.className = 'tab-container';
     
-    // Add click handler
-    tabElement.addEventListener('click', () => handleTabClick(tab.id));
+    // Check loading states for all tabs before rendering (only if not skipping)
+    if (!skipLoadingStateUpdate) {
+      await updateTabsLoadingStates();
+    }
     
-    container.appendChild(tabElement);
-  });
+    // Render each tab
+    tabs.forEach(tab => {
+      const tabElement = document.createElement('div');
+      let tabClasses = `tab ${tab.isActive ? 'active' : ''}`;
+      
+      // Add loading class if tab is in loading state
+      if (tab.isLoading) {
+        tabClasses += ' loading';
+      }
+      
+      tabElement.className = tabClasses;
+      tabElement.dataset.tabId = tab.id;
+      tabElement.textContent = tab.displayText;
+      
+      // Add click handler (remove any existing listeners first)
+      tabElement.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        handleTabClick(tab.id);
+      }, { once: false });
+      
+      container.appendChild(tabElement);
+    });
+    
+    logger.debug(`Rendered ${tabs.length} tabs`);
+  } catch (error) {
+    logger.error('Error rendering tabs:', error);
+  } finally {
+    isRendering = false;
+  }
+};
+
+/**
+ * Update loading states for all tabs
+ * @returns {Promise<void>}
+ */
+const updateTabsLoadingStates = async () => {
+  const currentUrl = window.StateManager.getStateItem('currentUrl');
+  if (!currentUrl) return;
+  
+  // Check loading state for each tab
+  for (const tab of tabs) {
+    try {
+      const loadingStateResponse = await chrome.runtime.sendMessage({
+        type: 'GET_LOADING_STATE',
+        url: currentUrl,
+        tabId: tab.id
+      });
+      
+      // Update tab loading state
+      tab.isLoading = loadingStateResponse && 
+                     loadingStateResponse.loadingState && 
+                     loadingStateResponse.loadingState.status === 'loading';
+                     
+    } catch (error) {
+      // If we can't check loading state, assume not loading
+      tab.isLoading = false;
+      logger.warn(`Error checking loading state for tab ${tab.id}:`, error);
+    }
+  }
+};
+
+/**
+ * Update specific tab loading state and re-render if needed
+ * @param {string} tabId - Tab ID to update
+ * @param {boolean} isLoading - Loading state
+ */
+const updateTabLoadingState = async (tabId, isLoading) => {
+  const tab = tabs.find(t => t.id === tabId);
+  if (tab && tab.isLoading !== isLoading) {
+    tab.isLoading = isLoading;
+    
+    // Re-render tabs to update visual state, but skip loading state update to prevent recursion
+    const container = document.querySelector('.tab-container');
+    if (container && !isRendering) {
+      await renderTabs(container, true); // Skip loading state update to prevent recursion
+    }
+    
+    logger.info(`Updated loading state for tab ${tabId}: ${isLoading}`);
+  }
 };
 
 /**
@@ -144,62 +231,101 @@ const renderTabs = (container) => {
  * @param {string} tabId - Tab ID to activate
  */
 const handleTabClick = async (tabId) => {
-  const tab = tabs.find(t => t.id === tabId);
-  if (!tab) {
-    logger.error(`Tab not found: ${tabId}`);
+  // Prevent concurrent tab click handling
+  if (isHandlingTabClick) {
+    logger.debug(`Tab click handling already in progress, ignoring click for tab ${tabId}`);
     return;
   }
   
-  // Update active tab
-  tabs.forEach(t => t.isActive = false);
-  tab.isActive = true;
-  activeTabId = tabId;
+  isHandlingTabClick = true;
   
-  // Re-render tabs to update active state
-  const container = document.querySelector('.tab-container');
-  if (container) {
-    renderTabs(container);
-  }
-  
-  // Load chat history for this tab and get the result
-  const chatHistory = await loadTabChatHistory(tabId);
-  
-  // Handle quick input auto-send logic
-  if (!tab.isDefault && tab.sendText) {
-    // Check if this tab has existing chat history
-    const hasExistingHistory = chatHistory && chatHistory.length > 0;
+  try {
+    const tab = tabs.find(t => t.id === tabId);
+    if (!tab) {
+      logger.error(`Tab not found: ${tabId}`);
+      return;
+    }
     
-    if (!hasExistingHistory && !tab.hasInitialized) {
-      // Only auto-send if no existing history and not yet initialized
-      tab.hasInitialized = true;
-      
-      // For Quick Input auto-send, always force include page content (but don't change UI state)
-      const forceIncludePageContent = true;
-      
-      // Auto-send the quick input message with forced include page content
-      if (onTabClickHandler) {
-        logger.info(`Auto-sending Quick Input for tab ${tabId} (no existing history) with forced page content inclusion`);
-        onTabClickHandler(tab.displayText, tab.sendText, tabId, true, forceIncludePageContent);
-      }
-    } else {
-      // Tab has existing history or already initialized, just switch without auto-send
-      if (hasExistingHistory) {
-        logger.info(`Tab ${tabId} has existing chat history (${chatHistory.length} messages), skipping auto-send`);
-      } else {
-        logger.info(`Tab ${tabId} already initialized, skipping auto-send`);
-      }
-      
-      if (onTabClickHandler) {
-        // Normal tab switch without auto-send
-        onTabClickHandler(null, null, tabId, false);
+    // Check if clicking on the current active tab that is in loading state
+    if (tab.isActive && activeTabId === tabId) {
+      // Check loading state to prevent duplicate calls
+      const currentUrl = window.StateManager.getStateItem('currentUrl');
+      if (currentUrl) {
+        try {
+          const loadingStateResponse = await chrome.runtime.sendMessage({
+            type: 'GET_LOADING_STATE',
+            url: currentUrl,
+            tabId: tabId
+          });
+          
+          if (loadingStateResponse && 
+              loadingStateResponse.loadingState && 
+              loadingStateResponse.loadingState.status === 'loading') {
+            logger.info(`Tab ${tabId} is already in loading state, ignoring click to prevent duplicate calls`);
+            return;
+          }
+        } catch (error) {
+          logger.warn('Error checking loading state for duplicate prevention:', error);
+          // Continue with normal flow if we can't check loading state
+        }
       }
     }
-  } else if (onTabClickHandler) {
-    // Default chat tab or tab without sendText - normal switch
-    onTabClickHandler(null, null, tabId, false);
+    
+    // Update active tab
+    tabs.forEach(t => t.isActive = false);
+    tab.isActive = true;
+    activeTabId = tabId;
+    
+    // Re-render tabs to update active state
+    const container = document.querySelector('.tab-container');
+    if (container) {
+      await renderTabs(container);
+    }
+    
+    // Load chat history for this tab and get the result
+    const chatHistory = await loadTabChatHistory(tabId);
+    
+    // Handle quick input auto-send logic
+    if (!tab.isDefault && tab.sendText) {
+      // Check if this tab has existing chat history
+      const hasExistingHistory = chatHistory && chatHistory.length > 0;
+      
+      if (!hasExistingHistory && !tab.hasInitialized) {
+        // Only auto-send if no existing history and not yet initialized
+        tab.hasInitialized = true;
+        
+        // For Quick Input auto-send, always force include page content (but don't change UI state)
+        const forceIncludePageContent = true;
+        
+        // Auto-send the quick input message with forced include page content
+        if (onTabClickHandler) {
+          logger.info(`Auto-sending Quick Input for tab ${tabId} (no existing history) with forced page content inclusion`);
+          onTabClickHandler(tab.displayText, tab.sendText, tabId, true, forceIncludePageContent);
+        }
+      } else {
+        // Tab has existing history or already initialized, just switch without auto-send
+        if (hasExistingHistory) {
+          logger.info(`Tab ${tabId} has existing chat history (${chatHistory.length} messages), skipping auto-send`);
+        } else {
+          logger.info(`Tab ${tabId} already initialized, skipping auto-send`);
+        }
+        
+        if (onTabClickHandler) {
+          // Normal tab switch without auto-send
+          onTabClickHandler(null, null, tabId, false);
+        }
+      }
+    } else if (onTabClickHandler) {
+      // Default chat tab or tab without sendText - normal switch
+      onTabClickHandler(null, null, tabId, false);
+    }
+    
+    logger.info(`Switched to tab: ${tabId}`);
+  } catch (error) {
+    logger.error(`Error handling tab click for ${tabId}:`, error);
+  } finally {
+    isHandlingTabClick = false;
   }
-  
-  logger.info(`Switched to tab: ${tabId}`);
 };
 
 /**
@@ -535,5 +661,7 @@ export {
   getActiveTab,
   getActiveTabId,
   clearTabChatHistory,
-  removeQuickInputTab
+  removeQuickInputTab,
+  updateTabLoadingState,
+  updateTabsLoadingStates
 }; 

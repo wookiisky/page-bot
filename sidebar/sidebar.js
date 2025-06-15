@@ -175,6 +175,11 @@ function setupMessageListeners() {
       );
     },
     
+    onLoadingStateUpdate: (message) => {
+      logger.info('Received LOADING_STATE_UPDATE:', message);
+      handleLoadingStateUpdate(message);
+    },
+    
     onTabChanged: PageDataManager.handleTabChanged,
     
     onAutoLoadContent: PageDataManager.handleAutoLoadContent,
@@ -183,4 +188,55 @@ function setupMessageListeners() {
     
     onTabUpdated: PageDataManager.handleTabUpdated
   });
+}
+
+/**
+ * Handle loading state updates from background script
+ * @param {Object} message - Loading state update message
+ */
+function handleLoadingStateUpdate(message) {
+  try {
+    const { url, tabId, status, result, error } = message;
+    const currentUrl = StateManager.getStateItem('currentUrl');
+    const activeTabId = TabManager.getActiveTabId();
+    
+    // Only process if this update is for current page and active tab
+    if (url === currentUrl && tabId === activeTabId) {
+      const chatContainer = UIManager.getElement('chatContainer');
+      
+      if (status === 'completed' && result) {
+        // Handle completed LLM response
+        logger.info('Handling completed LLM response from background broadcast');
+        ChatManager.handleStreamEnd(
+          chatContainer,
+          result,
+          async (response) => {
+            // Get updated dialog history from DOM
+            const chatHistory = ChatHistory.getChatHistoryFromDOM(chatContainer);
+            
+            // Save updated chat history for current tab
+            await TabManager.saveCurrentTabChatHistory(chatHistory);
+            logger.info('Tab chat history saved after background completion');
+            
+            // Re-enable send button
+            UIManager.getElement('sendBtn').disabled = false;
+          }
+        );
+      } else if (status === 'error' && error) {
+        // Handle error response
+        logger.info('Handling error response from background broadcast');
+        ChatManager.handleLlmError(
+          chatContainer,
+          error,
+          null,
+          () => {
+            // Re-enable send button
+            UIManager.getElement('sendBtn').disabled = false;
+          }
+        );
+      }
+    }
+  } catch (error) {
+    logger.error('Error handling loading state update:', error);
+  }
 } 
