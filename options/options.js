@@ -17,10 +17,9 @@ class OptionsPage {
   constructor() {
     this.domElements = domElements;
     this.domGroups = domGroups;
-    this.autoSaveTimeout = null;
-    this.autoSaveDelay = 1000; // 1 second delay for auto-save
-    // Initialize ModelManager with auto-save callback
-    this.modelManager = new ModelManager(domElements, () => this.debouncedAutoSave());
+    this.hasUnsavedChanges = false;
+    // Initialize ModelManager with change notification callback
+    this.modelManager = new ModelManager(domElements, () => this.markAsChanged());
   }
   
   // Initialize the options page
@@ -46,8 +45,8 @@ class OptionsPage {
       // Populate form with loaded config
       FormHandler.populateForm(config, this.domElements);
       
-      // Initialize model manager with config and auto-save callback
-      this.modelManager.init(config, () => this.debouncedAutoSave());
+      // Initialize model manager with config and change notification callback
+      this.modelManager.init(config, () => this.markAsChanged());
       
       // Render quick inputs
       QuickInputsManager.renderQuickInputs(config.quickInputs || [], this.domElements);
@@ -93,38 +92,86 @@ class OptionsPage {
     }
   }
   
-  // Debounced auto-save function
-  debouncedAutoSave() {
-    if (this.autoSaveTimeout) {
-      clearTimeout(this.autoSaveTimeout);
-    }
-    
-    this.autoSaveTimeout = setTimeout(() => {
-      this.autoSaveSettings();
-    }, this.autoSaveDelay);
+  // Mark form as changed (has unsaved changes)
+  markAsChanged() {
+    this.hasUnsavedChanges = true;
+    this.updateSaveButtonState();
   }
   
-  // Auto-save settings with validation
-  async autoSaveSettings() {
-    logger.info('Performing auto-save');
+  // Update save button visual state
+  updateSaveButtonState() {
+    const saveBtn = this.domElements.saveBtn;
+    if (!saveBtn) return;
     
-    // Build config from form
-    const config = ConfigManager.buildConfigFromForm(this.domElements, this.modelManager);
-    
-    // Get quick inputs and validate them
-    const quickInputs = QuickInputsManager.getQuickInputs(this.domElements);
-    config.quickInputs = quickInputs;
-    
-    // Save config
-    const success = await ConfigManager.saveSettings(config);
-    
-    if (success) {
-      logger.info('Settings auto-saved successfully');
-      // Update storage usage display after save
-      this.checkConfigurationHealth();
-    } else {
-      logger.error('Failed to auto-save settings');
+    if (this.hasUnsavedChanges) {
+      saveBtn.classList.remove('saved');
+      saveBtn.classList.remove('error');
     }
+  }
+  
+  // Manual save settings with validation and visual feedback
+  async saveSettings() {
+    const saveBtn = this.domElements.saveBtn;
+    if (!saveBtn) return;
+    
+    logger.info('Performing manual save');
+    
+    // Show saving state
+    saveBtn.classList.add('saving');
+    saveBtn.querySelector('span').textContent = 'Saving...';
+    
+    try {
+      // Build config from form
+      const config = ConfigManager.buildConfigFromForm(this.domElements, this.modelManager);
+      
+      // Get quick inputs and validate them
+      const quickInputs = QuickInputsManager.getQuickInputs(this.domElements);
+      config.quickInputs = quickInputs;
+      
+      // Save config
+      const success = await ConfigManager.saveSettings(config);
+      
+      if (success) {
+        logger.info('Settings saved successfully');
+        this.hasUnsavedChanges = false;
+        
+        // Show success state
+        saveBtn.classList.remove('saving');
+        saveBtn.classList.add('saved');
+        saveBtn.querySelector('span').textContent = 'Saved!';
+        
+        // Update storage usage display after save
+        this.checkConfigurationHealth();
+        
+        // Reset button state after 2 seconds
+        setTimeout(() => {
+          if (saveBtn.classList.contains('saved')) {
+            saveBtn.classList.remove('saved');
+            saveBtn.querySelector('span').textContent = 'Save';
+          }
+        }, 2000);
+        
+      } else {
+        logger.error('Failed to save settings');
+        this.showSaveError(saveBtn);
+      }
+    } catch (error) {
+      logger.error('Error during save:', error);
+      this.showSaveError(saveBtn);
+    }
+  }
+  
+  // Show error state on save button
+  showSaveError(saveBtn) {
+    saveBtn.classList.remove('saving');
+    saveBtn.classList.add('error');
+    saveBtn.querySelector('span').textContent = 'Error';
+    
+    // Reset button state after 3 seconds
+    setTimeout(() => {
+      saveBtn.classList.remove('error');
+      saveBtn.querySelector('span').textContent = 'Save';
+    }, 3000);
   }
   
   // Set up all event listeners
@@ -132,13 +179,18 @@ class OptionsPage {
     // Default extraction method toggle
     this.domElements.defaultExtractionMethod.addEventListener('change', () => {
       FormHandler.toggleExtractionMethodSettings(this.domElements, this.domGroups);
-      this.debouncedAutoSave();
+      this.markAsChanged();
     });
     
-    // Auto-save on form input changes
-    this.setupAutoSaveListeners();
+    // Set up change listeners for form inputs
+    this.setupChangeListeners();
     
-    // Model manager will handle its own event listeners and auto-save
+    // Save button click handler
+    this.domElements.saveBtn.addEventListener('click', () => {
+      this.saveSettings();
+    });
+    
+    // Model manager will handle its own event listeners and change notifications
     
     // Reset settings button
     this.domElements.resetBtn.addEventListener('click', () => {
@@ -147,7 +199,7 @@ class OptionsPage {
     
     // Set up quick inputs event listeners
     QuickInputsManager.setupEventListeners(this.domElements, () => {
-      this.debouncedAutoSave();
+      this.markAsChanged();
     });
 
     // Clear Pages Cache button
@@ -181,8 +233,8 @@ class OptionsPage {
     });
   }
   
-  // Setup auto-save listeners for form inputs
-  setupAutoSaveListeners() {
+  // Setup change listeners for form inputs
+  setupChangeListeners() {
     const inputs = [
       this.domElements.jinaApiKey,
       this.domElements.jinaResponseTemplate,
@@ -195,7 +247,7 @@ class OptionsPage {
       if (input) {
         const eventType = input.type === 'textarea' ? 'input' : 'change';
         input.addEventListener(eventType, () => {
-          this.debouncedAutoSave();
+          this.markAsChanged();
         });
       }
     });

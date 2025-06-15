@@ -805,6 +805,101 @@ input:checked + .slider:before {
   }
 }
 
+/* Floating Save Button */
+.floating-save-container {
+  position: fixed;
+  right: 30px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1000;
+}
+
+.floating-save-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: linear-gradient(135deg, #4285f4 0%, #1976d2 100%);
+  color: white;
+  border: none;
+  border-radius: 50px;
+  padding: 12px 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(25, 118, 210, 0.3);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.floating-save-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 25px rgba(25, 118, 210, 0.4);
+  background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
+}
+
+.floating-save-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 12px rgba(25, 118, 210, 0.3);
+}
+
+.floating-save-btn .material-icons {
+  font-size: 18px;
+}
+
+.floating-save-btn span {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Ripple effect */
+.floating-save-btn::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.floating-save-btn:active::before {
+  width: 300px;
+  height: 300px;
+}
+
+/* Save button states */
+.floating-save-btn.saving {
+  background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+  pointer-events: none;
+}
+
+.floating-save-btn.saved {
+  background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%);
+}
+
+.floating-save-btn.error {
+  background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .floating-save-container {
+    right: 20px;
+  }
+  
+  .floating-save-btn {
+    padding: 10px 16px;
+    font-size: 0.8rem;
+  }
+  
+  .floating-save-btn .material-icons {
+    font-size: 16px;
+  }
+}
+
 @media (max-width: 480px) {
   .form-group.inline {
     flex-direction: column;
@@ -815,6 +910,22 @@ input:checked + .slider:before {
   .form-group.inline label {
     min-width: auto;
     margin-bottom: 0.25rem;
+  }
+  
+  .floating-save-container {
+    right: 15px;
+  }
+  
+  .floating-save-btn span {
+    display: none;
+  }
+  
+  .floating-save-btn {
+    padding: 12px;
+    border-radius: 50%;
+    width: 48px;
+    height: 48px;
+    justify-content: center;
   }
 }
 

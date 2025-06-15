@@ -5,19 +5,19 @@
 const logger = window.logger ? window.logger.createModuleLogger('ModelManager') : console;
 
 export class ModelManager {
-  constructor(domElements, autoSaveCallback = null) {
+  constructor(domElements, changeCallback = null) {
     this.domElements = domElements;
     this.models = [];
     this.draggedItem = null;
-    this.autoSaveCallback = autoSaveCallback;
+    this.changeCallback = changeCallback;
     this.setupDragAndDrop();
   }
 
   // Initialize model configurations
-  init(config, autoSaveCallback = null) {
+  init(config, changeCallback = null) {
     this.models = config.llm?.models || [];
-    if (autoSaveCallback) {
-      this.autoSaveCallback = autoSaveCallback;
+    if (changeCallback) {
+      this.changeCallback = changeCallback;
     }
     this.renderModels();
     this.updateDefaultModelSelector();
@@ -166,8 +166,8 @@ export class ModelManager {
       this.renderModels();
       this.updateDefaultModelSelector();
       logger.info(`Removed model configuration at index ${index}`);
-      if (this.autoSaveCallback) {
-        this.autoSaveCallback();
+      if (this.changeCallback) {
+        this.changeCallback();
       }
     }
   }
@@ -178,8 +178,8 @@ export class ModelManager {
     this.renderModels();
     this.updateDefaultModelSelector();
     logger.info(`Toggled model ${index} enabled state to ${enabled}`);
-    if (this.autoSaveCallback && this.isModelComplete(this.models[index])) {
-      this.autoSaveCallback();
+    if (this.changeCallback && this.isModelComplete(this.models[index])) {
+      this.changeCallback();
     }
   }
 
@@ -190,8 +190,8 @@ export class ModelManager {
       this.updateDefaultModelSelector();
     }
     logger.debug(`Updated model ${index} field ${field} to ${value}`);
-    if (this.autoSaveCallback && this.isModelComplete(this.models[index])) {
-      this.autoSaveCallback();
+    if (this.changeCallback && this.isModelComplete(this.models[index])) {
+      this.changeCallback();
     }
   }
 
@@ -210,8 +210,8 @@ export class ModelManager {
 
     this.renderModels();
     logger.info(`Updated model ${index} provider to ${provider}`);
-    if (this.autoSaveCallback && this.isModelComplete(this.models[index])) {
-      this.autoSaveCallback();
+    if (this.changeCallback && this.isModelComplete(this.models[index])) {
+      this.changeCallback();
     }
   }
 
@@ -391,8 +391,8 @@ export class ModelManager {
       this.models = newOrder;
       this.renderModels();
       logger.info('Reordered model configurations');
-      if (this.autoSaveCallback) {
-        this.autoSaveCallback();
+      if (this.changeCallback) {
+        this.changeCallback();
       }
     } else {
       logger.warn('Model reordering failed: length mismatch');

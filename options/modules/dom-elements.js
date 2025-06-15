@@ -31,7 +31,8 @@ export const domElements = {
   exportConfigBtn: document.getElementById('exportConfigBtn'),
   importConfigBtn: document.getElementById('importConfigBtn'),
   importConfigFile: document.getElementById('importConfigFile'),
-  resetBtn: document.getElementById('resetBtn')
+  resetBtn: document.getElementById('resetBtn'),
+  saveBtn: document.getElementById('saveBtn')
 };
 
 // DOM element groups for easier management
