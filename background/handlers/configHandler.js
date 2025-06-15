@@ -34,4 +34,18 @@ async function handleResetConfig(configManager, serviceLogger) {
         serviceLogger.error('Handler: Error resetting config:', error);
         return { type: 'CONFIG_ERROR', error: error.message || 'Failed to reset config' };
     }
+}
+
+async function handleCheckConfigHealth(configManager, serviceLogger) {
+    serviceLogger.info('Handler: Checking config health and storage usage');
+    try {
+        const healthInfo = await configManager.checkStorageUsage();
+        return { 
+            type: 'CONFIG_HEALTH_CHECKED', 
+            healthInfo: healthInfo 
+        };
+    } catch (error) {
+        serviceLogger.error('Handler: Error checking config health:', error);
+        return { type: 'CONFIG_ERROR', error: error.message || 'Failed to check config health' };
+    }
 } 

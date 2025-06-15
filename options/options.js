@@ -54,6 +54,42 @@ class OptionsPage {
       
       // Toggle appropriate settings based on current values
       FormHandler.toggleExtractionMethodSettings(this.domElements, this.domGroups);
+      
+      // Check and display configuration health
+      this.checkConfigurationHealth();
+    }
+  }
+
+  // Check configuration health and display storage usage
+  async checkConfigurationHealth() {
+    try {
+      logger.info('Checking configuration health');
+      const healthInfo = await ConfigManager.checkConfigurationHealth();
+      
+      if (healthInfo) {
+        ConfigManager.displayStorageUsage(healthInfo, this.domElements);
+        
+        // Log warnings if approaching limits
+        const usagePercent = Math.round((healthInfo.total / healthInfo.maxTotal) * 100);
+        if (usagePercent > 80) {
+          logger.warn(`Storage usage is high: ${usagePercent}%. Consider reducing configuration size.`);
+        }
+        
+        // Check individual items
+        const itemWarnThreshold = healthInfo.maxPerItem * 0.8;
+        if (healthInfo.main > itemWarnThreshold) {
+          logger.warn(`Main config size is approaching limit: ${healthInfo.main}/${healthInfo.maxPerItem}B`);
+        }
+        // Commented out quick inputs warning as it's not needed
+        // if (healthInfo.quickInputs > itemWarnThreshold) {
+        //   logger.warn(`Quick inputs size is approaching limit: ${healthInfo.quickInputs}/${healthInfo.maxPerItem}B`);
+        // }
+        if (healthInfo.systemPrompt > itemWarnThreshold) {
+          logger.warn(`System prompt size is approaching limit: ${healthInfo.systemPrompt}/${healthInfo.maxPerItem}B`);
+        }
+      }
+    } catch (error) {
+      logger.error('Error checking configuration health:', error);
     }
   }
   
@@ -84,6 +120,8 @@ class OptionsPage {
     
     if (success) {
       logger.info('Settings auto-saved successfully');
+      // Update storage usage display after save
+      this.checkConfigurationHealth();
     } else {
       logger.error('Failed to auto-save settings');
     }

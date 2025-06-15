@@ -4,16 +4,11 @@
 export class QuickInputsManager {
   
   /**
-   * Generate a random unique ID for quick input tabs
+   * Generate a random unique ID for quick input tabs (consistent with config manager)
    * @returns {string} Random ID string
    */
   static generateRandomId() {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let result = 'qi_'; // prefix with 'qi_' (quick input)
-    for (let i = 0; i < 8; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
+    return 'qi_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
   }
   
   // Add a new quick input
@@ -46,7 +41,7 @@ export class QuickInputsManager {
     item.remove();
   }
   
-  // Get all quick inputs as an array
+  // Get all quick inputs as an array (ensuring IDs are preserved)
   static getQuickInputs(domElements) {
     const items = domElements.quickInputsContainer.querySelectorAll('.quick-input-item');
     const quickInputs = [];
@@ -68,14 +63,16 @@ export class QuickInputsManager {
     return quickInputs;
   }
   
-  // Render quick inputs from config
+  // Render quick inputs from config (preserving existing IDs)
   static renderQuickInputs(quickInputs, domElements) {
     // Clear existing quick inputs
     domElements.quickInputsContainer.innerHTML = '';
     
-    // Add each quick input
+    // Add each quick input (they should already have IDs from storage)
     quickInputs.forEach(input => {
-      this.addQuickInput(domElements, input.displayText, input.sendText, input.id);
+      // Ensure ID exists for backward compatibility
+      const id = input.id || this.generateRandomId();
+      this.addQuickInput(domElements, input.displayText, input.sendText, id);
     });
     
     // Add an empty one if none exist

@@ -45,7 +45,10 @@ const serviceLogger = logger ? logger.createModuleLogger('ServiceWorker') : cons
 chrome.runtime.onInstalled.addListener(async () => {
   serviceLogger.info('Page Bot extension installed or updated');
   
+  // Initialize config and handle migration from unified to split storage
   await configManager.initializeIfNeeded();
+  await configManager.migrateToSplitConfig();
+  await configManager.checkStorageUsage();
   
   serviceLogger.info('Extension setup complete');
 });
@@ -142,6 +145,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           return await handleSaveConfig(data, configManager, serviceLogger);
         case 'RESET_CONFIG':
           return await handleResetConfig(configManager, serviceLogger);
+        case 'CHECK_CONFIG_HEALTH':
+          return await handleCheckConfigHealth(configManager, serviceLogger);
         case 'SAVE_CHAT_HISTORY':
           return await handleSaveChatHistory(data, serviceLogger, storage);
         case 'GET_CHAT_HISTORY':
